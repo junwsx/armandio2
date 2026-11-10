@@ -6,6 +6,7 @@ import { TopBar, Segmented, Empty, Sheet, Photo, Chip, Field, Toggle } from '../
 import { ItemPicker } from '../components/pickers.jsx';
 import { OutfitCollage } from './ItemDetail.jsx';
 import { fmtDate, isoDate, cx } from '../lib/utils.js';
+import { usePersonal } from '../lib/personal.js';
 
 export default function Outfits() {
   const [sp, setSp] = useSearchParams();
@@ -28,7 +29,9 @@ export default function Outfits() {
 }
 
 function OutfitGrid() {
-  const { data, isAdmin } = useStore();
+  const { data, userId } = useStore();
+  const personal = usePersonal();
+  const author = (o) => (o.created_by && o.created_by !== userId) ? (personal.isViewer ? personal.adminName : personal.viewerName) : (o.created_by && personal.isViewer ? personal.viewerName : null);
   const [fav, setFav] = useState(false);
   const [tag, setTag] = useState(null);
   const uses = useMemo(() => {
@@ -57,16 +60,16 @@ function OutfitGrid() {
               <div className="card__body">
                 <h3 className="card__name">{o.name}</h3>
                 <p className="card__cat">{o.item_ids.length} capi · {uses[o.id] || 0} {uses[o.id] === 1 ? 'volta' : 'volte'}</p>
-                {o.tags?.length > 0 && <div className="badges">{o.tags.slice(0, 3).map((t) => <span key={t} className="tag">{t}</span>)}</div>}
+                {(o.tags?.length > 0 || author(o)) && <div className="badges">{author(o) && <span className="tag tag--author">di {author(o)}</span>}{o.tags.slice(0, 3).map((t) => <span key={t} className="tag">{t}</span>)}</div>}
               </div>
             </Link>
           ))}
         </div>
       ) : (
         <Empty icon={<Layers size={28} />} title="Nessun outfit" text="Combina i tuoi capi e salva i completi che ti piacciono."
-          action={isAdmin && <Link className="btn btn--primary" to="/outfit/nuovo"><Plus size={18} />Crea outfit</Link>} />
+          action={<Link className="btn btn--primary" to="/outfit/nuovo"><Plus size={18} />Crea outfit</Link>} />
       )}
-      {isAdmin && <Link to="/outfit/nuovo" className="fab" aria-label="Nuovo outfit"><Plus size={26} /></Link>}
+      <Link to="/outfit/nuovo" className="fab" aria-label="Nuovo outfit"><Plus size={26} /></Link>
     </>
   );
 }
@@ -181,9 +184,10 @@ function DaySheet({ day, logs, onClose }) {
 export function OutfitDetail() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { data, itemBy, isAdmin, saveLog, deleteOutfit, notify, saveOutfit } = useStore();
+  const { data, itemBy, isAdmin, saveLog, deleteOutfit, notify, saveOutfit, canEditOutfit } = useStore();
   const o = data.outfits.find((x) => x.id === id);
   if (!o) return <div className="page"><TopBar title="Outfit non trovato" back /></div>;
+  const canEdit = canEditOutfit(o);
   const logs = data.wear_logs.filter((l) => l.outfit_id === o.id).sort((a, b) => b.worn_on.localeCompare(a.worn_on));
   const items = o.item_ids.map((x) => itemBy[x]).filter(Boolean);
   const wornToday = async () => {
@@ -195,7 +199,7 @@ export function OutfitDetail() {
   return (
     <div className="page page--detail">
       <TopBar title={o.name} back sub={o.tags?.join(' · ')}
-        actions={isAdmin && <>
+        actions={canEdit && <>
           <button className="icon-btn" onClick={() => saveOutfit({ ...o, favorite: !o.favorite })}><Heart size={20} fill={o.favorite ? 'currentColor' : 'none'} className={o.favorite ? 'red' : ''} /></button>
           <Link className="icon-btn" to={`/outfit/${o.id}/modifica`}><Pencil size={20} /></Link>
         </>} />
@@ -215,7 +219,7 @@ export function OutfitDetail() {
         ))}
       </div>
       {o.notes && <div className="form-card"><p>{o.notes}</p></div>}
-      {isAdmin && (
+      {canEdit && (
         <button className="btn btn--danger btn--block mt" onClick={async () => {
           if (!window.confirm('Eliminare questo outfit?')) return;
           await deleteOutfit(o.id); nav('/outfit', { replace: true });
@@ -230,8 +234,9 @@ export function OutfitEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const { data, itemBy, saveOutfit, notify } = useStore();
+  const { data, itemBy, saveOutfit, notify, canEditOutfit } = useStore();
   const orig = id ? data.outfits.find((x) => x.id === id) : null;
+  const blocked = orig && !canEditOutfit(orig);
   const preset = sp.get('capi')?.split(',').filter((x) => itemBy[x]) || [];
   const [o, setO] = useState(() => orig || { name: '', item_ids: preset, tags: [], favorite: false, notes: '' });
   const [picker, setPicker] = useState(!orig && !preset.length);
@@ -241,6 +246,7 @@ export function OutfitEdit() {
   const toggleTag = (t) => set({ tags: o.tags.includes(t) ? o.tags.filter((x) => x !== t) : [...o.tags, t] });
   const submit = async (e) => {
     e.preventDefault();
+    if (blocked) return notify('Puoi modificare solo i tuoi outfit', 'err');
     if (!o.name.trim()) return notify('Dai un nome all\'outfit', 'err');
     if (!o.item_ids.length) return notify('Scegli almeno un capo', 'err');
     const saved = await saveOutfit({ ...o, name: o.name.trim() });

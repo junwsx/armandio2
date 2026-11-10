@@ -147,7 +147,10 @@ export function StoreProvider({ children }) {
   }), [loadAll]);
 
   const value = {
-    session, role, isAdmin: role === 'admin', data, error, toast, notify, demo: backend.demo, resetDemo: backend.reset,
+    session, role, isAdmin: role === 'admin', data,
+    userId: session?.user?.id,
+    // outfit: l'admin modifica tutto, l'ospite solo quelli creati da lui
+    canEditOutfit: (o) => role === 'admin' || (!!o?.created_by && o.created_by === session?.user?.id), error, toast, notify, demo: backend.demo, resetDemo: backend.reset,
     ...(derived || {}), ...actions,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -62,13 +62,13 @@ export default function Inspiration() {
               ))}
             </div>
           ) : <p className="muted pad">Non trovo abbastanza capi per questa combinazione. Assegna una categoria e un «ruolo» (sopra, sotto, scarpe…) ai tuoi capi.</p>}
-          {isAdmin && outfit.length > 0 && (
+          {outfit.length > 0 && (
             <div className="row gap">
-              <button className="btn grow" onClick={() => nav(`/outfit/nuovo?capi=${outfit.map((i) => i.id).join(',')}`)}><Save size={16} />Salva</button>
-              <button className="btn btn--primary grow" onClick={async () => {
+              <button className={isAdmin ? 'btn grow' : 'btn btn--primary grow'} onClick={() => nav(`/outfit/nuovo?capi=${outfit.map((i) => i.id).join(',')}`)}><Save size={16} />Salva come outfit</button>
+              {isAdmin && <button className="btn btn--primary grow" onClick={async () => {
                 const today = isoDate(); const ex = data.wear_logs.find((l) => l.worn_on === today);
                 await saveLog({ ...(ex || {}), worn_on: today, item_ids: outfit.map((i) => i.id), outfit_id: null });
-              }}><CalendarCheck size={16} />Lo indosso</button>
+              }}><CalendarCheck size={16} />Lo indosso</button>}
             </div>
           )}
         </section>

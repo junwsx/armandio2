@@ -5,21 +5,22 @@ import { Sheet, Chip, Photo, Stars, Swatch } from './ui.jsx';
 import { asArray, cx } from '../lib/utils.js';
 
 /* ---------- selezione categoria ad albero ---------- */
-export function CategoryPicker({ open, onClose, value, onPick, allowAny }) {
+// leafOnly: si possono scegliere solo le categorie finali (senza sottocategorie): quelle «raccoglitore» si aprono e basta
+export function CategoryPicker({ open, onClose, value, onPick, allowAny, leafOnly }) {
   const { children, pathOf, catById } = useStore();
   const [at, setAt] = useState(null); // categoria aperta
   const list = children[at || 'root'] || [];
   const crumbs = at ? pathOf(at) : [];
   const close = () => { setAt(null); onClose(); };
   return (
-    <Sheet open={open} onClose={close} title="Scegli categoria" tall>
+    <Sheet open={open} onClose={close} title={leafOnly && at ? `Scegli in «${catById[at]?.name}»` : 'Scegli categoria'} tall>
       <div className="crumbs">
         <button className={cx(!at && 'on')} onClick={() => setAt(null)}>Tutte</button>
         {crumbs.map((c) => (
           <span key={c.id}><ChevronRight size={14} /><button className={cx(c.id === at && 'on')} onClick={() => setAt(c.id)}>{c.name}</button></span>
         ))}
       </div>
-      {at && (
+      {at && !leafOnly && (
         <button className="list-row list-row--accent" onClick={() => { onPick(at); close(); }}>
           <span>Usa «{catById[at]?.name}»</span>
           {value === at && <Check size={18} />}

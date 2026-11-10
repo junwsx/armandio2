@@ -11,7 +11,7 @@ import { backend } from '../lib/backend.js';
 export default function ItemEdit() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { itemBy, attrsFor, pathOf, saveItem, upload, notify, isAdmin, settingsBy } = useStore();
+  const { itemBy, attrsFor, pathOf, saveItem, upload, notify, isAdmin, settingsBy, children } = useStore();
   const form = { photo: false, category: true, required: [], ...(settingsBy.form || {}) };
   const req = (aid) => form.required.includes(aid);
   const orig = id ? itemBy[id] : null;
@@ -62,6 +62,7 @@ export default function ItemEdit() {
       ...fields.filter((a) => req(a.id) && empty(item.attrs?.[a.id])).map((a) => a.name),
     ].filter(Boolean);
     if (missing.length) { notify(`Manca: ${missing.join(', ')}`, 'err'); return; }
+    if (item.category_id && (children[item.category_id] || []).length) { notify('Scegli una sottocategoria, non la categoria «contenitore»', 'err'); setCatOpen(true); return; }
     try {
       let next = { ...item, name: item.name.trim() };
       if (preview) {
@@ -117,6 +118,7 @@ export default function ItemEdit() {
             <span className={path.length ? '' : 'muted'}>{path.length ? path.map((c) => c.name).join(' › ') : 'Scegli…'}</span>
             <ChevronRight size={18} />
           </button>
+          {item.category_id && (children[item.category_id] || []).length > 0 && <span className="field__hint red">«{path[path.length - 1]?.name}» contiene sottocategorie: scegline una.</span>}
         </Field>
         <Toggle label="Preferito" checked={item.favorite} onChange={(v) => set({ favorite: v })} />
       </div>
@@ -137,7 +139,7 @@ export default function ItemEdit() {
         <button className="btn btn--primary btn--block btn--lg" disabled={!!busy}>{busy ? busy : orig ? 'Salva modifiche' : 'Aggiungi all\'armadio'}</button>
       </div>
 
-      <CategoryPicker open={catOpen} onClose={() => setCatOpen(false)} value={item.category_id} onPick={(cid) => set({ category_id: cid })} allowAny />
+      <CategoryPicker open={catOpen} onClose={() => setCatOpen(false)} value={item.category_id} onPick={(cid) => set({ category_id: cid })} allowAny={!form.category} leafOnly />
     </form>
   );
 }

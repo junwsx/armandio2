@@ -19,7 +19,7 @@ Su GitHub Pages il codice dell'app è pubblico per forza. Per questo la sicurezz
 A proteggere i dati sono le regole **RLS** (Row Level Security) che `supabase/schema.sql` crea nel database:
 
 - **admin** (tu): può leggere e scrivere tutto;
-- **viewer**: può solo leggere;
+- **viewer**: può leggere tutto e creare i propri outfit;
 - **pending** (qualsiasi nuovo utente): **non vede niente**. Anche se qualcuno riuscisse a registrarsi, resterebbe bloccato finché tu non gli assegni un ruolo;
 - **le foto** stanno in uno spazio **privato**: si aprono solo con link temporanei, generati per chi ha fatto il login.
 
@@ -91,6 +91,7 @@ Alcune funzioni nuove richiedono di eseguire **una volta** un piccolo script SQL
 | File | A cosa serve |
 |---|---|
 | `supabase/aggiornamento-01-foto-login.sql` | Spazio pubblico per la foto a cuore e i testi della pagina di accesso |
+| `supabase/aggiornamento-02-outfit-ospite.sql` | L'ospite può creare outfit (e modificare/cancellare solo i suoi) |
 
 Chi installa da zero con `schema.sql` li ha già inclusi.
 

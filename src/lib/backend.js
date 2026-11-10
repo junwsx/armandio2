@@ -144,7 +144,7 @@ function demoBackend() {
   return {
     demo: true,
     auth: {
-      async session() { return { user: { id: 'demo', email: 'demo@armadio.app' } }; },
+      async session() { const v = new URLSearchParams(location.search).get('ruolo') === 'viewer'; return { user: { id: v ? 'demo-ospite' : 'demo', email: v ? 'ospite@armadio.app' : 'demo@armadio.app' } }; },
       async signIn() { return this.session(); },
       async signOut() {},
       onChange() { return () => {}; },
@@ -155,6 +155,7 @@ function demoBackend() {
       async insert(t, row) {
         const r = { id: uid(), created_at: new Date().toISOString(), ...row };
         if (t === 'items') r.updated_at = r.created_at;
+        if (t === 'outfits' && !r.created_by) r.created_by = new URLSearchParams(location.search).get('ruolo') === 'viewer' ? 'demo-ospite' : 'demo';
         state[t] = [...(state[t] || []), r]; save(); return clone(r);
       },
       async update(t, id, patch) {
