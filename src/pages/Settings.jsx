@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FolderTree, Tags, LayoutGrid, Bookmark, Palette, User, Download, ChevronRight, Plus, Trash2, ArrowUp, ArrowDown,
-  GripVertical, LogOut, Search, RotateCcw, Lock,
+  GripVertical, LogOut, Search, RotateCcw, Lock, FileArchive, Heart, Asterisk, ImagePlus, AlertTriangle,
 } from 'lucide-react';
+import { usePersonal, DEFAULT_PERSONAL, DEFAULT_LOGIN } from '../lib/personal.js';
+import { HeartPhoto, HeartCropper } from '../components/personal.jsx';
+import { backend } from '../lib/backend.js';
+import { useEffect } from 'react';
 import { useStore } from '../lib/store.jsx';
 import { TopBar, Sheet, Field, Toggle, Chip, Segmented, Swatch } from '../components/ui.jsx';
 import { CategoryPicker, ROLES, roleLabel } from '../components/pickers.jsx';
@@ -13,20 +17,24 @@ import { uid, cx } from '../lib/utils.js';
 /* ---------------- menu ---------------- */
 export default function Settings() {
   const { isAdmin, session, role, signOut, demo, resetDemo, data } = useStore();
+  const { me } = usePersonal();
   const rows = [
+    isAdmin && ['personalizza', <Heart size={20} />, 'Personalizza', 'Nomi, titolo, frasi e foto a cuore del login'],
     isAdmin && ['categorie', <FolderTree size={20} />, 'Categorie', `${data.categories.length} categorie, a più livelli`],
     isAdmin && ['attributi', <Tags size={20} />, 'Attributi', 'Campi personalizzati, opzioni e colori'],
+    isAdmin && ['campi', <Asterisk size={20} />, 'Campi obbligatori', 'Cosa va compilato per forza quando aggiungi un capo'],
     isAdmin && ['griglia', <LayoutGrid size={20} />, 'Visualizzazione griglia', 'Cosa mostrare sotto ogni foto'],
     isAdmin && ['filtri', <Bookmark size={20} />, 'Filtri fissi', `${data.saved_filters.length} scorciatoie salvate`],
     isAdmin && ['ricerche', <Search size={20} />, 'Ricerche negozi', 'Preferenze per le Ispirazioni'],
     ['aspetto', <Palette size={20} />, 'Aspetto', 'Tema chiaro, scuro o automatico'],
+    isAdmin && ['importa-whering', <FileArchive size={20} />, 'Importa da Whering', 'Capi, foto e outfit dallo ZIP esportato'],
   ].filter(Boolean);
   return (
     <div className="page">
       <header className="hero"><div className="hero__row"><div><h1 className="hero__title">Impostazioni</h1><p className="hero__sub">Personalizza il tuo armadio</p></div></div></header>
       <div className="account">
         <span className="account__avatar"><User size={20} /></span>
-        <span className="grow"><b>{session?.user?.email}</b><span className="muted small block">{role === 'admin' ? 'Amministratore · lettura e scrittura' : 'Visualizzatore · solo lettura'}{demo ? ' · demo locale' : ''}</span></span>
+        <span className="grow"><b>Ciao {me} {role === 'admin' ? '👋' : '💛'}</b><span className="muted small block">{session?.user?.email} · {role === 'admin' ? 'amministratore' : 'solo lettura'}{demo ? ' · demo locale' : ''}</span></span>
         {!demo && <button className="icon-btn icon-btn--soft" onClick={signOut} aria-label="Esci"><LogOut size={18} /></button>}
       </div>
       <div className="menu">
@@ -50,7 +58,7 @@ export default function Settings() {
           </button>
         )}
       </div>
-      {!isAdmin && <p className="muted small center pad"><Lock size={12} /> Sei in sola lettura: categorie e attributi li gestisce l'amministratore.</p>}
+      {!isAdmin && <p className="muted small center pad"><Lock size={12} /> Puoi guardare tutto: le modifiche le fa l'amministratore.</p>}
       <p className="muted small center">Armadio Digitale · v1.0</p>
     </div>
   );
@@ -342,6 +350,122 @@ export function AppearanceSettings() {
     <div className="page">
       <TopBar title="Aspetto" back="/impostazioni" />
       <div className="form-card"><Field label="Tema"><Segmented value={t} onChange={apply} options={[['auto', 'Automatico'], ['light', 'Chiaro'], ['dark', 'Scuro']]} /></Field></div>
+    </div>
+  );
+}
+
+/* ---------------- personalizza ---------------- */
+export function PersonalSettings() {
+  const { settingsBy, setSetting, notify } = useStore();
+  const cur = { ...DEFAULT_PERSONAL, ...(settingsBy.personal || {}) };
+  const [p, setP] = useState({ ...cur, phrasesAdmin: cur.phrasesAdmin.join('\n'), phrasesViewer: cur.phrasesViewer.join('\n') });
+  const [login, setLogin] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const fileRef = { current: null };
+
+  useEffect(() => {
+    backend.pub.json('login.json').then(async (j) => {
+      const l = { ...DEFAULT_LOGIN, ...(j || {}) };
+      setLogin(l);
+      if (l.photo) setPhotoUrl((await backend.pub.load('login.webp')) + (backend.demo ? '' : `?v=${l.photo}`));
+    });
+  }, []);
+
+  const saveTexts = async () => {
+    await setSetting('personal', {
+      ...p,
+      phrasesAdmin: p.phrasesAdmin.split('\n').map((x) => x.trim()).filter(Boolean),
+      phrasesViewer: p.phrasesViewer.split('\n').map((x) => x.trim()).filter(Boolean),
+    });
+    notify('Personalizzazione salvata');
+  };
+  const saveLogin = async (next) => {
+    await backend.pub.upload('login.json', new Blob([JSON.stringify(next)], { type: 'application/json' }));
+    setLogin(next);
+  };
+  const savePhoto = async (blob) => {
+    try {
+      setBusy(true);
+      await backend.pub.upload('login.webp', blob);
+      const v = Date.now();
+      await saveLogin({ ...login, photo: v });
+      setPhotoUrl(backend.demo ? await backend.pub.load('login.webp') : `${backend.pub.url('login.webp')}?v=${v}`);
+      setFile(null); notify('Foto aggiornata');
+    } catch (e) { notify(e.message, 'err'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="page">
+      <TopBar title="Personalizza" back="/impostazioni" />
+      <div className="form-card">
+        <Field label="Titolo dell'armadio"><input className="input" value={p.title} onChange={(e) => setP({ ...p, title: e.target.value })} /></Field>
+        <div className="row gap">
+          <Field label="Il tuo nome (admin)"><input className="input" value={p.adminName} onChange={(e) => setP({ ...p, adminName: e.target.value })} /></Field>
+          <Field label="Nome dell'ospite"><input className="input" value={p.viewerName} onChange={(e) => setP({ ...p, viewerName: e.target.value })} /></Field>
+        </div>
+      </div>
+      <div className="form-card">
+        <Toggle label="Mostra le frasi" hint="In cima all'armadio, una alla volta. Si chiudono con la ✕ fino al giorno dopo." checked={p.showPhrases} onChange={(v) => setP({ ...p, showPhrases: v })} />
+        <Field label={`Frasi che vede ${p.adminName || 'l\'admin'}`} hint="Una per riga. Tocca la frase nell'app per cambiarla.">
+          <textarea className="input" rows={5} value={p.phrasesAdmin} onChange={(e) => setP({ ...p, phrasesAdmin: e.target.value })} />
+        </Field>
+        <Field label={`Frasi che vede ${p.viewerName || 'l\'ospite'}`} hint="Accanto compare il pulsante «Scegli tu», che apre i suggerimenti di outfit.">
+          <textarea className="input" rows={5} value={p.phrasesViewer} onChange={(e) => setP({ ...p, phrasesViewer: e.target.value })} />
+        </Field>
+        <button className="btn btn--primary btn--block" onClick={saveTexts}>Salva</button>
+      </div>
+
+      <h3 className="section-title">Pagina di accesso</h3>
+      <p className="muted small"><AlertTriangle size={12} /> Foto e testi del login sono visibili a <b>chiunque apra il link dell'app</b>, anche senza password: è la pagina d'ingresso.</p>
+      {login && (
+        <div className="form-card">
+          {file ? (
+            <HeartCropper file={file} busy={busy} onCancel={() => setFile(null)} onSave={savePhoto} />
+          ) : (
+            <>
+              <HeartPhoto src={photoUrl} size={200} className="center-block" />
+              <div className="row gap">
+                <label className="btn grow"><ImagePlus size={18} />{photoUrl ? 'Cambia foto' : 'Scegli foto'}
+                  <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setFile(f); }} />
+                </label>
+                {photoUrl && <button className="btn btn--danger" onClick={async () => { await backend.pub.remove('login.webp'); await saveLogin({ ...login, photo: null }); setPhotoUrl(null); }}><Trash2 size={18} /></button>}
+              </div>
+            </>
+          )}
+          <Field label="Titolo del login"><input className="input" value={login.title} onChange={(e) => setLogin({ ...login, title: e.target.value })} /></Field>
+          <Field label="Sottotitolo"><input className="input" value={login.subtitle} onChange={(e) => setLogin({ ...login, subtitle: e.target.value })} /></Field>
+          <button className="btn btn--block" onClick={async () => { try { await saveLogin(login); notify('Pagina di accesso aggiornata'); } catch (e) { notify(e.message, 'err'); } }}>Salva testi del login</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- campi obbligatori ---------------- */
+export const DEFAULT_FORM = { photo: false, category: true, required: [] };
+export function FieldsSettings() {
+  const { settingsBy, setSetting, attrs } = useStore();
+  const f = { ...DEFAULT_FORM, ...(settingsBy.form || {}) };
+  const set = (patch) => setSetting('form', { ...f, ...patch });
+  const toggleAttr = (id, v) => set({ required: v ? [...new Set([...f.required, id])] : f.required.filter((x) => x !== id) });
+  return (
+    <div className="page">
+      <TopBar title="Campi obbligatori" back="/impostazioni" sub="Senza questi il capo non si salva" />
+      <div className="form-card">
+        <Toggle label="Nome" hint="Sempre obbligatorio" checked onChange={() => {}} />
+        <Toggle label="Foto" checked={f.photo} onChange={(v) => set({ photo: v })} />
+        <Toggle label="Categoria" checked={f.category} onChange={(v) => set({ category: v })} />
+      </div>
+      <h3 className="section-title">Attributi</h3>
+      <div className="form-card">
+        {attrs.map((a) => (
+          <Toggle key={a.id} label={a.name} hint={a.category_ids?.length ? 'Solo per le categorie a cui si applica' : null}
+            checked={f.required.includes(a.id)} onChange={(v) => toggleAttr(a.id, v)} />
+        ))}
+      </div>
+      <p className="muted small center pad">Nel modulo i campi obbligatori hanno un asterisco *. I capi già inseriti non vengono toccati.</p>
     </div>
   );
 }

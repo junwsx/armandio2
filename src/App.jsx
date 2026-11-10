@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { backend } from './lib/backend.js';
+import { HeartPhoto } from './components/personal.jsx';
 import { HashRouter, NavLink, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { Shirt, Layers, Sparkles, BarChart3, Settings as Cog, Loader2, LockKeyhole, Eye, EyeOff } from 'lucide-react';
 import { StoreProvider, useStore } from './lib/store.jsx';
@@ -9,7 +11,8 @@ import ItemEdit from './pages/ItemEdit.jsx';
 import Outfits, { OutfitDetail, OutfitEdit } from './pages/Outfits.jsx';
 import Inspiration from './pages/Inspiration.jsx';
 import Stats from './pages/Stats.jsx';
-import Settings, { CategoriesSettings, AttributesSettings, GridSettings, FiltersSettings, SearchSettings, AppearanceSettings } from './pages/Settings.jsx';
+import ImportWhering from './pages/ImportWhering.jsx';
+import Settings, { PersonalSettings, FieldsSettings, CategoriesSettings, AttributesSettings, GridSettings, FiltersSettings, SearchSettings, AppearanceSettings } from './pages/Settings.jsx';
 
 export default function App() {
   return (
@@ -61,6 +64,9 @@ function Shell() {
           <Route path="/impostazioni/filtri" element={<FiltersSettings />} />
           <Route path="/impostazioni/ricerche" element={<SearchSettings />} />
           <Route path="/impostazioni/aspetto" element={<AppearanceSettings />} />
+          <Route path="/impostazioni/personalizza" element={<PersonalSettings />} />
+          <Route path="/impostazioni/campi" element={<FieldsSettings />} />
+          <Route path="/impostazioni/importa-whering" element={<ImportWhering />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -112,6 +118,10 @@ function Login() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [look, setLook] = useState(() => { try { return JSON.parse(localStorage.getItem('armadio-login')); } catch { return null; } });
+  useEffect(() => {
+    backend.pub?.json('login.json').then((j) => { if (j) { setLook(j); try { localStorage.setItem('armadio-login', JSON.stringify(j)); } catch { /* */ } } });
+  }, []);
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
     try { await signIn(u, p); } catch (x) { setErr(x.message); } finally { setBusy(false); }
@@ -119,10 +129,11 @@ function Login() {
   return (
     <div className="login">
       <div className="login__brand">
-        <HangerLogo size={52} />
-        <h1>Armadio<br />Digitale</h1>
-        <p>Il tuo guardaroba, sempre con te.</p>
+        <HangerLogo size={44} />
+        <h1>{look?.title || <>Armadio<br />Digitale</>}</h1>
+        <p>{look?.subtitle || 'Il tuo guardaroba, sempre con te.'}</p>
       </div>
+      {look?.photo && <HeartPhoto src={`${backend.pub.url('login.webp')}?v=${look.photo}`} size={230} className="login__heart" />}
       <form className="login__form" onSubmit={submit}>
         <label className="field"><span className="field__label">Utente o email</span>
           <input className="input input--lg" autoComplete="username" autoCapitalize="none" value={u} onChange={(e) => setU(e.target.value)} required /></label>

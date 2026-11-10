@@ -20,20 +20,31 @@ export const toEmail = (u) => (u.includes('@') ? u.trim() : `${u.trim().toLowerC
 /* ------------------------------------------------------------------ */
 function supabaseBackend() {
   const sb = createClient(URL_, KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  // Link firmati delle foto: li salviamo nel browser per 3 giorni.
+  // Stesso link = il browser riusa la foto già scaricata (cache), invece di riscaricarla a ogni apertura.
+  const URL_KEY = 'armadio-foto-link';
+  const VALID_S = 60 * 60 * 24 * 3;
   const urlCache = new Map(); // path -> { url, exp }
+  try { Object.entries(JSON.parse(localStorage.getItem(URL_KEY)) || {}).forEach(([k, v]) => { if (v.exp > Date.now()) urlCache.set(k, v); }); } catch { /* */ }
+  let saveTimer = null;
+  const persist = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { try { localStorage.setItem(URL_KEY, JSON.stringify(Object.fromEntries(urlCache))); } catch { /* */ } }, 500);
+  };
   let queue = new Map(); // path -> [resolve]
   let timer = null;
 
   const flush = async () => {
     const batch = queue; queue = new Map(); timer = null;
     const paths = [...batch.keys()];
-    const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 6);
-    const exp = Date.now() + 1000 * 60 * 60 * 5;
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, VALID_S);
+    const exp = Date.now() + (VALID_S - 60 * 60 * 6) * 1000; // rinnovo 6 ore prima della scadenza
     paths.forEach((p, i) => {
       const url = !error && data?.[i]?.signedUrl ? data[i].signedUrl : null;
       if (url) urlCache.set(p, { url, exp });
       batch.get(p).forEach((r) => r(url));
     });
+    persist();
   };
 
   const unwrap = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
@@ -47,7 +58,7 @@ function supabaseBackend() {
         if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Utente o password errati' : error.message);
         return data.session;
       },
-      async signOut() { await sb.auth.signOut(); urlCache.clear(); },
+      async signOut() { await sb.auth.signOut(); urlCache.clear(); clearLocal(); },
       onChange(cb) { const { data } = sb.auth.onAuthStateChange((_e, s) => cb(s)); return () => data.subscription.unsubscribe(); },
       async role(session) {
         const { data } = await sb.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
@@ -87,7 +98,25 @@ function supabaseBackend() {
       },
       cached(path) { const c = urlCache.get(path); return c && c.exp > Date.now() ? c.url : null; },
     },
+    // spazio PUBBLICO (bucket "pubblico"): solo per la foto e i testi della pagina di login
+    pub: {
+      url: (path) => `${URL_}/storage/v1/object/public/${PUBLIC_BUCKET}/${path}`,
+      async load(path) { return `${URL_}/storage/v1/object/public/${PUBLIC_BUCKET}/${path}`; },
+      async upload(path, blob) {
+        unwrap(await sb.storage.from(PUBLIC_BUCKET).upload(path, blob, { contentType: blob.type, upsert: true, cacheControl: '60' }));
+      },
+      async remove(path) { await sb.storage.from(PUBLIC_BUCKET).remove([path]); },
+      async json(path) {
+        try { const r = await fetch(`${URL_}/storage/v1/object/public/${PUBLIC_BUCKET}/${path}?t=${Date.now()}`); return r.ok ? await r.json() : null; } catch { return null; }
+      },
+    },
   };
+}
+const PUBLIC_BUCKET = 'pubblico';
+
+// pulizia dei dati salvati nel browser all'uscita
+export function clearLocal() {
+  try { Object.keys(localStorage).filter((k) => k.startsWith('armadio-cache-') || k === 'armadio-foto-link').forEach((k) => localStorage.removeItem(k)); } catch { /* */ }
 }
 
 /* ------------------------------------------------------------------ */
@@ -149,6 +178,17 @@ function demoBackend() {
         return u;
       },
       cached(path) { return urls.get(path) || null; },
+    },
+    pub: {
+      url: (path) => urls.get('pub/' + path) || null,
+      async upload(path, blob) {
+        if (path.endsWith('.json')) { localStorage.setItem('armadio-demo-pub-' + path, await blob.text()); return; }
+        await tx('readwrite', (s) => s.put(blob, 'pub/' + path)); urls.delete('pub/' + path);
+        urls.set('pub/' + path, URL.createObjectURL(blob));
+      },
+      async remove(path) { localStorage.removeItem('armadio-demo-pub-' + path); await tx('readwrite', (s) => s.delete('pub/' + path)); urls.delete('pub/' + path); },
+      async json(path) { try { return JSON.parse(localStorage.getItem('armadio-demo-pub-' + path)); } catch { return null; } },
+      async load(path) { if (urls.has('pub/' + path)) return urls.get('pub/' + path); const b = await tx('readonly', (s) => s.get('pub/' + path)); if (!b) return null; const u = URL.createObjectURL(b); urls.set('pub/' + path, u); return u; },
     },
     reset() { localStorage.removeItem(LS); indexedDB.deleteDatabase('armadio-demo-photos'); location.reload(); },
   };

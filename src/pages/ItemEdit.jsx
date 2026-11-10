@@ -11,7 +11,9 @@ import { backend } from '../lib/backend.js';
 export default function ItemEdit() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { itemBy, attrsFor, pathOf, saveItem, upload, notify, isAdmin } = useStore();
+  const { itemBy, attrsFor, pathOf, saveItem, upload, notify, isAdmin, settingsBy } = useStore();
+  const form = { photo: false, category: true, required: [], ...(settingsBy.form || {}) };
+  const req = (aid) => form.required.includes(aid);
   const orig = id ? itemBy[id] : null;
   const dupFrom = new URLSearchParams(location.hash.split('?')[1] || '').get('da');
   const base = orig || (dupFrom && itemBy[dupFrom] ? { ...itemBy[dupFrom], id: undefined, name: itemBy[dupFrom].name + ' (copia)', photo_path: null, thumb_path: null } : null);
@@ -53,6 +55,13 @@ export default function ItemEdit() {
   const submit = async (e) => {
     e.preventDefault();
     if (!item.name.trim()) { notify('Dai un nome al capo', 'err'); return; }
+    const empty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
+    const missing = [
+      form.photo && !preview && !item.photo_path ? 'Foto' : null,
+      form.category && !item.category_id ? 'Categoria' : null,
+      ...fields.filter((a) => req(a.id) && empty(item.attrs?.[a.id])).map((a) => a.name),
+    ].filter(Boolean);
+    if (missing.length) { notify(`Manca: ${missing.join(', ')}`, 'err'); return; }
     try {
       let next = { ...item, name: item.name.trim() };
       if (preview) {
@@ -84,7 +93,7 @@ export default function ItemEdit() {
         ) : (
           <div className="photo-edit__empty">
             <ImagePlus size={34} strokeWidth={1.4} />
-            <span>Aggiungi una foto del capo</span>
+            <span>Aggiungi una foto del capo{form.photo ? ' *' : ''}</span>
           </div>
         )}
         {busy && <div className="photo-edit__busy"><Loader2 className="spin" size={22} /><span>{busy}</span></div>}
@@ -100,10 +109,10 @@ export default function ItemEdit() {
       {file && !bgDone && <p className="field__hint center">La prima rimozione scarica un modello (~40 MB) che poi resta in cache.</p>}
 
       <div className="form-card">
-        <Field label="Nome">
+        <Field label="Nome *">
           <input className="input" placeholder="Es. Polo blu navy" value={item.name} onChange={(e) => set({ name: e.target.value })} required />
         </Field>
-        <Field label="Categoria">
+        <Field label={form.category ? 'Categoria *' : 'Categoria'}>
           <button type="button" className="input input--btn" onClick={() => setCatOpen(true)}>
             <span className={path.length ? '' : 'muted'}>{path.length ? path.map((c) => c.name).join(' › ') : 'Scegli…'}</span>
             <ChevronRight size={18} />
@@ -115,7 +124,7 @@ export default function ItemEdit() {
       <div className="form-card">
         <h3 className="form-card__title">Dettagli</h3>
         {fields.map((a) => (
-          <Field key={a.id} label={a.name}>
+          <Field key={a.id} label={req(a.id) ? `${a.name} *` : a.name}>
             <AttrField attr={a} value={item.attrs?.[a.id]} onChange={(v) => setAttr(a.id, v)} />
           </Field>
         ))}

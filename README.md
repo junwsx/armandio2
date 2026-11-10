@@ -84,6 +84,18 @@ Si apre a schermo intero, come un'app normale.
 
 ---
 
+## 🔄 Aggiornamenti del database
+
+Alcune funzioni nuove richiedono di eseguire **una volta** un piccolo script SQL in Supabase: **SQL Editor** → **New query** → incolla → **Run**. Lo script si può rieseguire senza problemi.
+
+| File | A cosa serve |
+|---|---|
+| `supabase/aggiornamento-01-foto-login.sql` | Spazio pubblico per la foto a cuore e i testi della pagina di accesso |
+
+Chi installa da zero con `schema.sql` li ha già inclusi.
+
+---
+
 ## 🧪 Provarla senza Supabase (modalità demo)
 
 Senza le chiavi, l'app parte in **modalità demo** con capi di esempio salvati solo nel browser. È utile per provarla subito.
@@ -130,7 +142,13 @@ npm run dev          # apre http://localhost:5173
   - checklist del **guardaroba capsula** (16 essenziali);
   - *buchi* per stagione e per uso;
   - link di ricerca pronti su Zalando, Vinted, Google Shopping e Pinterest, e una **lista desideri**.
+- **Personalizza** (*Altro → Personalizza*):
+  - titolo dell'armadio e nomi (Ciro come admin, Enza come ospite), con saluto in alto;
+  - frasi «pop» diverse per ognuno: si cambiano toccandole e si chiudono fino al giorno dopo. Per l'ospite c'è anche il pulsante «Scegli tu»;
+  - foto a cuore e testi della pagina di accesso. ⚠️ Questi sono visibili a chiunque apra il link.
+- **Campi obbligatori** (*Altro → Campi obbligatori*): scegli se foto, categoria e ogni attributo sono obbligatori quando aggiungi un capo.
 - **Backup**: *Altro → Esporta backup* scarica tutti i dati in JSON.
+- **Importa da Whering**: *Altro → Importa da Whering*, scegli lo ZIP esportato (`whering-export/whering-export-con-foto.zip`). Crea capi, foto, categorie, colori, stagioni, uso, usura, marca, stile e outfit. Si può rilanciare senza creare doppioni.
 
 ## 📦 Limiti del piano gratuito Supabase
 

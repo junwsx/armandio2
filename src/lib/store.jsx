@@ -20,18 +20,38 @@ export function StoreProvider({ children }) {
     return backend.auth.onChange((s) => setSession(s || null));
   }, []);
 
+  // Avvio rapido: mostro subito l'ultima copia dei dati salvata in questo browser,
+  // poi la aggiorno in background (ruolo + tutte le tabelle in parallelo, un solo giro).
+  const cacheKey = session?.user?.id ? `armadio-cache-${session.user.id}` : null;
   const loadAll = useCallback(async () => {
+    if (!backend.demo && cacheKey) {
+      try {
+        const c = JSON.parse(localStorage.getItem(cacheKey));
+        if (c?.data && c.role) { setRole((r) => r || c.role); setData((d) => d || c.data); }
+      } catch { /* */ }
+    }
     try {
-      const r = await backend.auth.role(session);
+      const [r, ...lists] = await Promise.all([backend.auth.role(session), ...TABLES.map((t) => backend.db.list(t).catch((e) => { throw e; }))]);
       setRole(r);
-      if (r === 'pending') { setData(null); return; }
-      const lists = await Promise.all(TABLES.map((t) => backend.db.list(t)));
-      setData(Object.fromEntries(TABLES.map((t, i) => [t, lists[i]])));
+      if (r === 'pending') { setData(null); if (cacheKey) localStorage.removeItem(cacheKey); return; }
+      const fresh = Object.fromEntries(TABLES.map((t, i) => [t, lists[i]]));
+      setData(fresh);
       setError(null);
-    } catch (e) { setError(e.message); }
-  }, [session]);
+      if (!backend.demo && cacheKey) { try { localStorage.setItem(cacheKey, JSON.stringify({ role: r, data: fresh, at: Date.now() })); } catch { /* spazio pieno */ } }
+    } catch (e) {
+      // senza rete ma con una copia salvata: resto sulla copia invece di mostrare l'errore
+      setData((d) => { if (!d) setError(e.message); return d; });
+    }
+  }, [session, cacheKey]);
 
   useEffect(() => { if (session) loadAll(); else if (session === null) { setData(null); setRole(null); } }, [session, loadAll]);
+
+  // ogni modifica aggiorna anche la copia locale
+  useEffect(() => {
+    if (backend.demo || !cacheKey || !data || !role || role === 'pending') return;
+    const t = setTimeout(() => { try { localStorage.setItem(cacheKey, JSON.stringify({ role, data, at: Date.now() })); } catch { /* */ } }, 800);
+    return () => clearTimeout(t);
+  }, [data, role, cacheKey]);
 
   const notify = useCallback((msg, kind = 'ok') => {
     setToast({ msg, kind, id: uid() });
@@ -118,6 +138,8 @@ export function StoreProvider({ children }) {
       setData((d) => ({ ...d, settings: [...d.settings.filter((s) => s.key !== key), r] }));
     }),
     upload: (path, blob) => guard(() => backend.storage.upload(path, blob)),
+    // inserimento diretto (mantiene created_at) — usato dalle importazioni
+    insertRaw: (table, row) => guard(async () => { const out = await backend.db.insert(table, row); put(table, out); return out; }),
     reload: loadAll,
     signIn: (u, p) => backend.auth.signIn(u, p).then((s) => { setSession(s); return s; }),
     signOut: async () => { await backend.auth.signOut(); setSession(null); },

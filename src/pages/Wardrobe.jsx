@@ -5,6 +5,8 @@ import { useStore, applyFilter, EMPTY_FILTER, filterCount, SORTS } from '../lib/
 import ItemCard from '../components/ItemCard.jsx';
 import { Chip, Sheet, Empty, Swatch, Stars, Field } from '../components/ui.jsx';
 import { asArray, cx } from '../lib/utils.js';
+import { usePersonal } from '../lib/personal.js';
+import { PhraseBanner } from '../components/personal.jsx';
 
 const KEY = 'armadio-filter';
 const loadF = () => { try { return { ...EMPTY_FILTER, ...JSON.parse(sessionStorage.getItem(KEY)) }; } catch { return EMPTY_FILTER; } };
@@ -12,6 +14,7 @@ const loadF = () => { try { return { ...EMPTY_FILTER, ...JSON.parse(sessionStora
 export default function Wardrobe() {
   const store = useStore();
   const { children, catById, pathOf, attrs, data, isAdmin, saveFilter, deleteFilter, grid } = store;
+  const personal = usePersonal();
   const [f, setF] = useState(loadF);
   const [showSearch, setShowSearch] = useState(!!f.q);
   const [sheet, setSheet] = useState(false);
@@ -50,8 +53,8 @@ export default function Wardrobe() {
       <header className="hero">
         <div className="hero__row">
           <div>
-            <h1 className="hero__title">Il mio armadio</h1>
-            <p className="hero__sub">{list.length} {list.length === 1 ? 'capo' : 'capi'}{sel ? ` · ${selPath.map((c) => c.name).join(' › ')}` : ''}</p>
+            <h1 className="hero__title">{personal.title}</h1>
+            <p className="hero__sub">Ciao {personal.me} {personal.isViewer ? '💛' : '👋'} · {list.length} {list.length === 1 ? 'capo' : 'capi'}{sel ? ` · ${selPath.map((c) => c.name).join(' › ')}` : ''}</p>
           </div>
           <div className="hero__actions">
             <button className={cx('icon-btn icon-btn--soft', showSearch && 'on')} onClick={() => { setShowSearch(!showSearch); if (showSearch) set({ q: '' }); }} aria-label="Cerca">
@@ -70,6 +73,7 @@ export default function Wardrobe() {
           </div>
         )}
       </header>
+      <PhraseBanner />
 
       <div className="sticky-filters">
         <div className="chips-scroll">

@@ -7,3 +7,7 @@ dist/
 *.local
 .DS_Store
 Thumbs.db
+
+# Esportazioni e dati personali (mai su GitHub)
+whering-export/
+*.zip
