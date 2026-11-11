@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, Heart, Plus, X, Bookmark, ChevronRight, Shirt } from 'lucide-react';
+import { Search, SlidersHorizontal, Heart, Plus, X, Bookmark, ChevronRight, Shirt, Archive, ListChecks, Pencil } from 'lucide-react';
+import BulkEdit from '../components/BulkEdit.jsx';
 import { useStore, applyFilter, EMPTY_FILTER, filterCount, SORTS } from '../lib/store.jsx';
 import ItemCard from '../components/ItemCard.jsx';
 import { Chip, Sheet, Empty, Swatch, Stars, Field } from '../components/ui.jsx';
@@ -19,6 +20,9 @@ export default function Wardrobe() {
   const [showSearch, setShowSearch] = useState(!!f.q);
   const [sheet, setSheet] = useState(false);
   const [activeSaved, setActiveSaved] = useState(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   useEffect(() => { try { sessionStorage.setItem(KEY, JSON.stringify(f)); } catch { /* */ } }, [f]);
 
@@ -32,6 +36,10 @@ export default function Wardrobe() {
   const subRowParent = subs.length ? sel : siblingsParent ? catById[siblingsParent] : null;
   const pinned = (data.saved_filters || []).filter((s) => s.pinned).sort((a, b) => a.sort - b.sort);
   const nActive = filterCount(f);
+  const nArchived = store.archivedItems.length;
+  const selectedItems = list.filter((it) => selected.has(it.id));
+  const toggleSel = (id) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const stopSelecting = () => { setSelecting(false); setSelected(new Set()); };
 
   const set = (patch) => { setActiveSaved(null); setF((x) => ({ ...x, ...patch })); };
   const applySaved = (s) => {
@@ -60,6 +68,11 @@ export default function Wardrobe() {
             <button className={cx('icon-btn icon-btn--soft', showSearch && 'on')} onClick={() => { setShowSearch(!showSearch); if (showSearch) set({ q: '' }); }} aria-label="Cerca">
               {showSearch ? <X size={20} /> : <Search size={20} />}
             </button>
+            {isAdmin && (
+              <button className={cx('icon-btn icon-btn--soft', selecting && 'on')} onClick={() => (selecting ? stopSelecting() : setSelecting(true))} aria-label="Seleziona più capi">
+                {selecting ? <X size={20} /> : <ListChecks size={20} />}
+              </button>
+            )}
             <button className="icon-btn icon-btn--soft" onClick={() => setSheet(true)} aria-label="Filtri">
               <SlidersHorizontal size={20} />
               {nActive > 0 && <span className="dot-count">{nActive}</span>}
@@ -77,7 +90,7 @@ export default function Wardrobe() {
 
       <div className="sticky-filters">
         <div className="chips-scroll">
-          <Chip active={!f.categoryId && !f.favorites && !nActive && !activeSaved} onClick={() => { setActiveSaved(null); setF({ ...EMPTY_FILTER, q: f.q, sort: f.sort }); }}>Tutti</Chip>
+          <Chip active={!f.categoryId && !f.favorites && !nActive && !activeSaved && !f.archived} onClick={() => { setActiveSaved(null); setF({ ...EMPTY_FILTER, q: f.q, sort: f.sort }); }}>Tutti</Chip>
           <Chip active={f.favorites && !activeSaved} onClick={() => set({ favorites: !f.favorites })} icon={<Heart size={14} fill={f.favorites ? 'currentColor' : 'none'} />}>Preferiti</Chip>
           {pinned.map((s) => (
             <Chip key={s.id} active={activeSaved === s.id} onClick={() => applySaved(s)} icon={<Bookmark size={14} />} className="chip--saved">{s.name}</Chip>
@@ -88,6 +101,10 @@ export default function Wardrobe() {
               {c.icon && <span className="emoji">{c.icon}</span>}{c.name}
             </Chip>
           ))}
+          {(nArchived > 0 || f.archived) && <>
+            <span className="chips-sep" />
+            <Chip active={f.archived} onClick={() => { set({ archived: !f.archived }); setSelected(new Set()); }} icon={<Archive size={14} />}>Archivio · {nArchived}</Chip>
+          </>}
         </div>
         {subRow.length > 0 && (
           <div className="chips-scroll chips-scroll--sub">
@@ -107,10 +124,14 @@ export default function Wardrobe() {
         )}
       </div>
 
+      {f.archived && (
+        <div className="archived-note"><Archive size={16} /><span>Stai guardando l'<b>archivio</b>: capi che non metti più. Non compaiono nell'armadio, nelle idee e nelle statistiche.</span>
+          <button className="link-btn" onClick={() => set({ archived: false })}>Esci</button></div>
+      )}
       {list.length ? (
-        <div className={cx('grid', `grid--${grid.columns || 2}`)}>
-          {list.map((it) => <ItemCard key={it.id} item={it} />)}
-          {isAdmin && (
+        <div className={cx('grid', `grid--${grid.columns || 2}`, selecting && 'grid--selecting')}>
+          {list.map((it) => <ItemCard key={it.id} item={it} selecting={selecting} selected={selected.has(it.id)} onToggle={toggleSel} />)}
+          {isAdmin && !selecting && !f.archived && (
             <Link to="/capo/nuovo" className="card card--add">
               <span className="card--add__icon"><Plus size={22} /></span>
               <span>Aggiungi un capo</span>
@@ -118,13 +139,26 @@ export default function Wardrobe() {
           )}
         </div>
       ) : (
-        <Empty icon={<Shirt size={28} />}
-          title={store.items.length ? 'Nessun capo con questi filtri' : 'Il tuo armadio è vuoto'}
+        <Empty icon={f.archived ? <Archive size={28} /> : <Shirt size={28} />}
+          title={f.archived ? 'L\'archivio è vuoto' : store.items.length ? 'Nessun capo con questi filtri' : 'Il tuo armadio è vuoto'}
           text={store.items.length ? 'Prova a togliere qualche filtro.' : isAdmin ? 'Aggiungi il primo capo con una foto.' : 'L\'amministratore non ha ancora aggiunto capi.'}
           action={isAdmin && !store.items.length ? <Link className="btn btn--primary" to="/capo/nuovo"><Plus size={18} />Aggiungi capo</Link> : store.items.length ? <button className="btn" onClick={() => setF({ ...EMPTY_FILTER })}>Azzera filtri</button> : null} />
       )}
 
-      {isAdmin && <Link to="/capo/nuovo" className="fab" aria-label="Nuovo capo"><Plus size={26} /></Link>}
+      {isAdmin && !selecting && !f.archived && <Link to="/capo/nuovo" className="fab" aria-label="Nuovo capo"><Plus size={26} /></Link>}
+
+      {selecting && (
+        <div className="select-bar">
+          <button className="icon-btn icon-btn--sm" onClick={stopSelecting} aria-label="Annulla selezione"><X size={18} /></button>
+          <span className="grow"><b>{selectedItems.length}</b> {selectedItems.length === 1 ? 'selezionato' : 'selezionati'}</span>
+          <button className="link-btn" onClick={() => setSelected(selectedItems.length === list.length ? new Set() : new Set(list.map((i) => i.id)))}>
+            {selectedItems.length === list.length && list.length ? 'Nessuno' : `Tutti (${list.length})`}
+          </button>
+          <button className="btn btn--primary" disabled={!selectedItems.length} onClick={() => setBulkOpen(true)}><Pencil size={16} />Modifica</button>
+        </div>
+      )}
+      <BulkEdit open={bulkOpen} onClose={() => setBulkOpen(false)} items={selectedItems} inArchive={f.archived}
+        onDone={() => { setBulkOpen(false); stopSelecting(); }} />
 
       <FilterSheet open={sheet} onClose={() => setSheet(false)} f={f} set={set} attrs={attrs} isAdmin={isAdmin}
         count={list.length} onSave={async (name) => { await saveFilter({ name, filter: { ...f, q: '' }, pinned: true, sort: pinned.length }); }}

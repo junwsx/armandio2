@@ -148,6 +148,8 @@ npm run dev          # apre http://localhost:5173
   - frasi «pop» diverse per ognuno: si cambiano toccandole e si chiudono fino al giorno dopo. Per l'ospite c'è anche il pulsante «Scegli tu»;
   - foto a cuore e testi della pagina di accesso. ⚠️ Questi sono visibili a chiunque apra il link.
 - **Campi obbligatori** (*Altro → Campi obbligatori*): scegli se foto, categoria e ogni attributo sono obbligatori quando aggiungi un capo.
+- **Archivio**: dalla scheda di un capo, *Archivia (non lo metto più)*. Non compare più nell'armadio, nelle idee e nelle statistiche, ma resta nel chip **Archivio** in fondo ai filtri e si può ripristinare.
+- **Modifica massiva**: nell'armadio tocca l'icona ☑︎, seleziona i capi (o *Tutti*) → **Modifica**. Puoi cambiare categoria e preferito, e per ogni attributo aggiungere, togliere, sostituire o svuotare i valori. In più archivi, ripristini o elimini in blocco.
 - **Backup**: *Altro → Esporta backup* scarica tutti i dati in JSON.
 - **Importa da Whering**: *Altro → Importa da Whering*, scegli lo ZIP esportato (`whering-export/whering-export-con-foto.zip`). Crea capi, foto, categorie, colori, stagioni, uso, usura, marca, stile e outfit. Si può rilanciare senza creare doppioni.
 

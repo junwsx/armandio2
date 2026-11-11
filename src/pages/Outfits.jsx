@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid, Heart, Pencil, Trash2, CalendarCheck, X, Layers } from 'lucide-react';
 import { useStore } from '../lib/store.jsx';
 import { TopBar, Segmented, Empty, Sheet, Photo, Chip, Field, Toggle } from '../components/ui.jsx';
@@ -184,6 +184,7 @@ function DaySheet({ day, logs, onClose }) {
 export function OutfitDetail() {
   const { id } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
   const { data, itemBy, isAdmin, saveLog, deleteOutfit, notify, saveOutfit, canEditOutfit } = useStore();
   const o = data.outfits.find((x) => x.id === id);
   if (!o) return <div className="page"><TopBar title="Outfit non trovato" back /></div>;
@@ -222,7 +223,8 @@ export function OutfitDetail() {
       {canEdit && (
         <button className="btn btn--danger btn--block mt" onClick={async () => {
           if (!window.confirm('Eliminare questo outfit?')) return;
-          await deleteOutfit(o.id); nav('/outfit', { replace: true });
+          await deleteOutfit(o.id);
+          if (location.key !== 'default') nav(-1); else nav('/outfit', { replace: true });
         }}><Trash2 size={18} />Elimina outfit</button>
       )}
     </div>
@@ -234,6 +236,7 @@ export function OutfitEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [sp] = useSearchParams();
+  const location = useLocation();
   const { data, itemBy, saveOutfit, notify, canEditOutfit } = useStore();
   const orig = id ? data.outfits.find((x) => x.id === id) : null;
   const blocked = orig && !canEditOutfit(orig);
@@ -250,7 +253,8 @@ export function OutfitEdit() {
     if (!o.name.trim()) return notify('Dai un nome all\'outfit', 'err');
     if (!o.item_ids.length) return notify('Scegli almeno un capo', 'err');
     const saved = await saveOutfit({ ...o, name: o.name.trim() });
-    nav(`/outfit/${saved.id}`, { replace: true });
+    if (orig && location.key !== 'default') nav(-1);
+    else nav(`/outfit/${saved.id}`, { replace: true });
   };
   return (
     <form className="page page--form" onSubmit={submit}>

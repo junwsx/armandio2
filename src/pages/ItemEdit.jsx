@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Camera, ImagePlus, Wand2, ChevronRight, Undo2, Loader2 } from 'lucide-react';
 import { useStore } from '../lib/store.jsx';
 import { TopBar, Field, Toggle, Photo } from '../components/ui.jsx';
@@ -11,6 +11,7 @@ import { backend } from '../lib/backend.js';
 export default function ItemEdit() {
   const { id } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
   const { itemBy, attrsFor, pathOf, saveItem, upload, notify, isAdmin, settingsBy, children } = useStore();
   const form = { photo: false, category: true, required: [], ...(settingsBy.form || {}) };
   const req = (aid) => form.required.includes(aid);
@@ -78,7 +79,9 @@ export default function ItemEdit() {
       }
       setBusy('Salvo…');
       const saved = await saveItem(next);
-      nav(`/capo/${saved.id}`, { replace: true });
+      // modifica: torno alla scheda già aperta (niente doppioni nella cronologia)
+      if (orig && location.key !== 'default') nav(-1);
+      else nav(`/capo/${saved.id}`, { replace: true });
     } catch (err) { console.error(err); } finally { setBusy(''); }
   };
 

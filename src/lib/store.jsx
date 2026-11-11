@@ -99,6 +99,7 @@ export function StoreProvider({ children }) {
     };
 
     const items = data.items.filter((i) => !i.archived);
+    const archivedItems = data.items.filter((i) => i.archived);
     const itemBy = Object.fromEntries(data.items.map((i) => [i.id, i]));
 
     // utilizzi
@@ -110,7 +111,7 @@ export function StoreProvider({ children }) {
 
     const grid = { ...DEFAULT_GRID, ...(data.settings.find((s) => s.key === 'grid')?.value || {}) };
     const settingsBy = Object.fromEntries(data.settings.map((s) => [s.key, s.value]));
-    return { cats, catById, children, pathOf, descendants, rootOf, roleOf, attrs, attrBy, sys, attrsFor, items, itemBy, wear, lastWorn, grid, settingsBy };
+    return { cats, catById, children, pathOf, descendants, rootOf, roleOf, attrs, attrBy, sys, attrsFor, items, archivedItems, itemBy, wear, lastWorn, grid, settingsBy };
   }, [data]);
 
   // ---------- azioni di dominio ----------
@@ -121,6 +122,35 @@ export function StoreProvider({ children }) {
       backend.storage.remove([item.photo_path, item.thumb_path].filter(Boolean)).catch(() => {});
     },
     toggleFavorite: (item) => save('items', { ...item, favorite: !item.favorite }),
+    setArchived: (item, archived) => save('items', { ...item, archived }, archived ? 'Capo archiviato' : 'Capo ripristinato'),
+    // modifica massiva: salva in parallelo (4 alla volta) senza un avviso per ogni capo
+    saveItemsBulk: async (rows, onProgress) => {
+      let done = 0; const errors = [];
+      const queue = [...rows];
+      await Promise.all(Array.from({ length: 4 }, async () => {
+        while (queue.length) {
+          const row = queue.shift();
+          try {
+            const { id, created_at, updated_at, ...rest } = row;
+            put('items', await backend.db.update('items', id, { ...rest, slug: slugify(row.name) }));
+          } catch (e) { errors.push(`${row.name}: ${e.message}`); }
+          onProgress?.(++done, rows.length);
+        }
+      }));
+      notify(errors.length ? `${rows.length - errors.length} capi aggiornati, ${errors.length} errori` : `${rows.length} capi aggiornati`, errors.length ? 'err' : 'ok');
+      return errors;
+    },
+    deleteItemsBulk: async (list, onProgress) => {
+      let done = 0;
+      for (const item of list) {
+        try {
+          await backend.db.remove('items', item.id); drop('items', item.id);
+          backend.storage.remove([item.photo_path, item.thumb_path].filter(Boolean)).catch(() => {});
+        } catch (e) { notify(e.message, 'err'); break; }
+        onProgress?.(++done, list.length);
+      }
+      notify(`${done} capi eliminati`);
+    },
     saveCategory: (c) => save('categories', c),
     deleteCategory: (id) => remove('categories', id, 'Categoria eliminata'),
     saveAttribute: (a) => save('attributes', a, 'Attributo salvato'),
@@ -157,14 +187,15 @@ export function StoreProvider({ children }) {
 }
 
 /* ---------------- filtri ---------------- */
-export const EMPTY_FILTER = { q: '', categoryId: null, favorites: false, attrs: {}, sort: 'recent' };
+export const EMPTY_FILTER = { q: '', categoryId: null, favorites: false, attrs: {}, sort: 'recent', archived: false };
 
 export function filterCount(f) {
   return (f.favorites ? 1 : 0) + Object.values(f.attrs || {}).filter((v) => asArray(v).length).length;
 }
 
 export function applyFilter(store, f) {
-  const { items, descendants, attrBy, pathOf, wear, sys } = store;
+  const { descendants, attrBy, pathOf, wear, sys } = store;
+  const items = f.archived ? store.archivedItems : store.items;
   const catSet = f.categoryId ? new Set(descendants(f.categoryId)) : null;
   const q = f.q?.trim().toLowerCase();
   let out = items.filter((it) => {

@@ -1,5 +1,5 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Heart, Pencil, Trash2, CalendarCheck, Copy, Repeat, Clock, Euro } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Heart, Pencil, Trash2, CalendarCheck, Copy, Repeat, Clock, Euro, Archive, ArchiveRestore } from 'lucide-react';
 import { useStore } from '../lib/store.jsx';
 import { TopBar, Photo, Tag, Swatch, Stars } from '../components/ui.jsx';
 import { asArray, attrText, daysBetween, fmtDate, fmtMoney, isoDate, cx } from '../lib/utils.js';
@@ -7,7 +7,8 @@ import { asArray, attrText, daysBetween, fmtDate, fmtMoney, isoDate, cx } from '
 export default function ItemDetail() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { itemBy, pathOf, attrsFor, wear, lastWorn, isAdmin, toggleFavorite, deleteItem, data, saveLog, sys, notify } = useStore();
+  const location = useLocation();
+  const { itemBy, pathOf, attrsFor, wear, lastWorn, isAdmin, toggleFavorite, deleteItem, data, saveLog, sys, notify, setArchived } = useStore();
   const it = itemBy[id];
   if (!it) return <div className="page"><TopBar title="Capo non trovato" back="/" /></div>;
   const path = pathOf(it.category_id);
@@ -38,6 +39,9 @@ export default function ItemDetail() {
         </button>
       </div>
 
+      {it.archived && (
+        <div className="archived-note"><Archive size={16} /><span>Capo archiviato: non compare nell'armadio, nelle idee e nelle statistiche.</span></div>
+      )}
       <div className="detail-head">
         {path.length > 0 && <p className="crumb-text">{path.map((c) => c.name).join(' › ')}</p>}
         <h1>{it.name}</h1>
@@ -49,7 +53,7 @@ export default function ItemDetail() {
         <div><Euro size={16} /><b>{price ? fmtMoney(price / Math.max(1, n)) : '—'}</b><span>per utilizzo</span></div>
       </div>
 
-      {isAdmin && (
+      {isAdmin && !it.archived && (
         <button className="btn btn--primary btn--block" onClick={wornToday}><CalendarCheck size={18} />L'ho indossato oggi</button>
       )}
 
@@ -87,10 +91,16 @@ export default function ItemDetail() {
       )}
 
       {isAdmin && (
-        <button className="btn btn--danger btn--block mt" onClick={async () => {
-          if (!window.confirm(`Eliminare «${it.name}»? L'operazione non si può annullare.`)) return;
-          await deleteItem(it); nav('/', { replace: true });
-        }}><Trash2 size={18} />Elimina capo</button>
+        <div className="detail-actions mt">
+          <button className="btn btn--block" onClick={() => setArchived(it, !it.archived)}>
+            {it.archived ? <><ArchiveRestore size={18} />Ripristina nell'armadio</> : <><Archive size={18} />Archivia (non lo metto più)</>}
+          </button>
+          <button className="btn btn--danger btn--block" onClick={async () => {
+            if (!window.confirm(`Eliminare per sempre «${it.name}»? L'operazione non si può annullare.\n\nSe vuoi solo toglierlo di mezzo, usa «Archivia».`)) return;
+            await deleteItem(it);
+            if (location.key !== 'default') nav(-1); else nav('/', { replace: true });
+          }}><Trash2 size={18} />Elimina per sempre</button>
+        </div>
       )}
     </div>
   );
