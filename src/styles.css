@@ -223,8 +223,6 @@ select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csv
 .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
 .stars { display: flex; gap: 2px; }
-.stars button { color: var(--line-2); line-height: 1; padding: 2px; }
-.stars button.on { color: #f5a623; }
 .stars button:disabled { cursor: default; }
 
 /* ---------- photo edit ---------- */
@@ -509,3 +507,63 @@ select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csv
   .attr-row dt { font-size: 9.5px; }
   .attr-row .tag, .color-val { font-size: 10px; padding: 0 3.5px; letter-spacing: -0.015em; }
 }
+
+/* ---------- stelle con mezzi punti ---------- */
+.stars { align-items: center; }
+.stars button { display: inline-block; line-height: 1; padding: 2px; color: inherit; }
+.stars .star { position: relative; display: inline-block; }
+.stars .star__bg { color: var(--line-2); }
+.stars .star__fg { position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap; color: #f5a623; }
+.stars__val { margin-left: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+
+/* pannelli: nessun elemento può essere schiacciato (bug dei pulsanti tagliati in «Scegli i capi») */
+.sheet__body > * { flex-shrink: 0; }
+
+/* ---------- scheda capo: date e cronologia ---------- */
+.mini-stats__btn { background: var(--bg-2); border-radius: 14px; padding: 10px 12px; display: grid; gap: 1px; text-align: left; justify-items: start; }
+.mini-stats__btn:not(:disabled) { box-shadow: inset 0 0 0 1.5px var(--accent-soft); }
+.mini-stats__btn svg { color: var(--muted); margin-bottom: 4px; }
+.mini-stats__btn b { font-size: 17px; font-family: var(--font-display); }
+.mini-stats__btn span { font-size: 11.5px; color: var(--accent); display: inline-flex; align-items: center; }
+.mini-stats__btn:disabled span { color: var(--muted); }
+.mini-stats__btn span svg { margin: 0; color: inherit; }
+.dates { list-style: none; margin: 0; padding: 0; display: grid; }
+.dates li { display: grid; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.dates li:last-child { border-bottom: 0; }
+.dates__day { font-weight: 600; }
+.dates__day::first-letter { text-transform: uppercase; }
+.info-box { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.info-box__head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 16px; text-align: left; color: var(--text-2); }
+.info-box__body { padding: 0 16px 16px; display: grid; gap: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.history { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.history li { display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); font-size: 13.5px; }
+.history__when { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.history__line s { color: var(--muted); }
+.sheet-sub svg { vertical-align: -2px; }
+
+/* ---------- creazione outfit a sezioni ---------- */
+.page--builder { padding-bottom: 8px; }
+.page--builder ~ .bottom-nav { display: none; }
+.builder-q { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 2px 14px; }
+.sec-list { display: grid; gap: 10px; }
+.sec { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); text-align: left; min-height: 70px; transition: border-color .15s; }
+.sec:active { transform: scale(.99); }
+.sec--done { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.sec__icon { width: 44px; height: 44px; border-radius: 14px; background: var(--bg-2); display: grid; place-items: center; font-size: 22px; flex: none; }
+.sec__thumbs { display: flex; flex: none; }
+.sec__thumbs .photo { width: 38px; height: 46px; border-radius: 9px; border: 2px solid var(--surface); margin-left: -12px; }
+.sec__thumbs .photo:first-child { margin-left: 0; }
+.mb { margin-bottom: 10px; }
+.sum-sec { margin-top: 8px; }
+.sum-sec .sheet-sub { margin: 6px 2px 8px; }
+.chip--add { border-style: dashed; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line-2)); }
+
+/* ---------- calendario: mini collage dei capi del giorno ---------- */
+.day-collage { position: absolute; inset: 0; display: grid; gap: 1px; background: var(--line); }
+.day-collage--1 { grid-template-columns: 1fr; }
+.day-collage--2 { grid-template-columns: 1fr 1fr; }
+.day-collage--3, .day-collage--4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.day-collage .photo { position: static; width: 100%; height: 100%; min-height: 0; }
+.day-collage .photo img { object-fit: contain; padding: 1px; }
+.day-collage__more { display: grid; place-items: center; background: var(--bg-2); font-size: 11px; font-weight: 700; color: var(--text-2); }

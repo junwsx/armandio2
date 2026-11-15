@@ -12,7 +12,7 @@ export function TopBar({ title, back, actions, sub, large }) {
     <header className={cx('topbar', large && 'topbar--large')}>
       <div className="topbar__row">
         {back && (
-          <button className="icon-btn" onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))} aria-label="Indietro">
+          <button type="button" className="icon-btn" onClick={() => (typeof back === 'function' ? back() : typeof back === 'string' ? nav(back) : nav(-1))} aria-label="Indietro">
             <ChevronLeft size={22} />
           </button>
         )}
@@ -42,7 +42,7 @@ export function Sheet({ open, onClose, title, children, footer, tall }) {
         <div className="sheet__grab" />
         <div className="sheet__head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Chiudi"><X size={20} /></button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Chiudi"><X size={20} /></button>
         </div>
         <div className="sheet__body">{children}</div>
         {footer && <div className="sheet__foot">{footer}</div>}
@@ -153,13 +153,25 @@ export function Segmented({ value, onChange, options }) {
   );
 }
 
+// Gradimento da 0,5 a 5. Tocco su una stella: piena → mezza → vuota.
 export function Stars({ value = 0, onChange, size = 22 }) {
+  const v = Number(value) || 0;
+  const tap = (n) => {
+    if (v === n) onChange?.(n - 0.5);
+    else if (v === n - 0.5) onChange?.(0);
+    else onChange?.(n);
+  };
   return (
-    <div className="stars">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" disabled={!onChange} className={cx(n <= value && 'on')} style={{ fontSize: size }}
-          onClick={() => onChange?.(n === value ? 0 : n)}>★</button>
-      ))}
+    <div className="stars" role="group" aria-label={`Gradimento ${String(v).replace('.', ',')} su 5`}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const fill = v >= n ? 100 : v >= n - 0.5 ? 50 : 0;
+        return (
+          <button key={n} type="button" disabled={!onChange} style={{ fontSize: size }} onClick={() => tap(n)} aria-label={`${n} stelle`}>
+            <span className="star"><span className="star__bg">★</span><span className="star__fg" style={{ width: `${fill}%` }}>★</span></span>
+          </button>
+        );
+      })}
+      {onChange && v > 0 && <span className="stars__val">{String(v).replace('.', ',')}</span>}
     </div>
   );
 }

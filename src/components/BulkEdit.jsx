@@ -3,7 +3,7 @@ import { ChevronRight, ChevronDown, Archive, ArchiveRestore, Trash2, Loader2, X 
 import { useStore } from '../lib/store.jsx';
 import { Sheet, Segmented, Field } from './ui.jsx';
 import { CategoryPicker, AttrField } from './pickers.jsx';
-import { asArray, cx } from '../lib/utils.js';
+import { asArray, cx, ratingText } from '../lib/utils.js';
 
 const MULTI_MODES = [['add', 'Aggiungi'], ['remove', 'Togli'], ['set', 'Sostituisci'], ['clear', 'Svuota']];
 const SINGLE_MODES = [['set', 'Imposta'], ['clear', 'Svuota']];
@@ -69,7 +69,7 @@ export default function BulkEdit({ open, onClose, items, inArchive, onDone }) {
     if (isEmpty(op.value)) return 'scegli un valore…';
     const label = (a.type === 'select' || a.type === 'multiselect')
       ? asArray(op.value).map((v) => a.options.find((o) => o.id === v)?.label).filter(Boolean).join(', ')
-      : a.type === 'rating' ? '★'.repeat(op.value) : a.type === 'boolean' ? (op.value ? 'Sì' : 'No') : String(op.value);
+      : a.type === 'rating' ? ratingText(op.value) : a.type === 'boolean' ? (op.value ? 'Sì' : 'No') : String(op.value);
     const verb = { add: 'aggiungi', remove: 'togli', set: a.type === 'multiselect' ? 'sostituisci con' : 'imposta' }[op.mode];
     return `${verb} ${label}`;
   };

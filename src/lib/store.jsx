@@ -220,7 +220,7 @@ export function applyFilter(store, f) {
     }
     return true;
   });
-  const pd = sys.purchase_date?.id, pr = sys.price?.id;
+  const pd = sys.purchase_date?.id, pr = sys.price?.id, rt = sys.rating?.id;
   const sorters = {
     recent: (a, b) => b.created_at.localeCompare(a.created_at),
     name: (a, b) => a.name.localeCompare(b.name),
@@ -228,11 +228,12 @@ export function applyFilter(store, f) {
     worn: (a, b) => (wear[b.id] || 0) - (wear[a.id] || 0),
     leastworn: (a, b) => (wear[a.id] || 0) - (wear[b.id] || 0),
     price: (a, b) => (Number(b.attrs?.[pr]) || 0) - (Number(a.attrs?.[pr]) || 0),
+    rating: (a, b) => ((Number(b.attrs?.[rt]) || 0) - (Number(a.attrs?.[rt]) || 0)) || a.name.localeCompare(b.name),
   };
   return out.sort(sorters[f.sort] || sorters.recent);
 }
 
 export const SORTS = [
   ['recent', 'Aggiunti di recente'], ['name', 'Nome A→Z'], ['purchase', 'Data di acquisto'],
-  ['worn', 'Più indossati'], ['leastworn', 'Meno indossati'], ['price', 'Prezzo'],
+  ['rating', 'Gradimento (dal più alto)'], ['worn', 'Più indossati'], ['leastworn', 'Meno indossati'], ['price', 'Prezzo'],
 ];

@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Heart, Pencil, Trash2, CalendarCheck, Copy, Repeat, Clock, Euro, Archive, ArchiveRestore } from 'lucide-react';
+import { Heart, Pencil, Trash2, CalendarCheck, Copy, Repeat, Clock, Euro, Archive, ArchiveRestore, ChevronRight, ChevronDown, Info, History } from 'lucide-react';
+import { backend } from '../lib/backend.js';
+import { usePersonal } from '../lib/personal.js';
 import { useStore } from '../lib/store.jsx';
-import { TopBar, Photo, Tag, Swatch, Stars } from '../components/ui.jsx';
+import { TopBar, Photo, Tag, Swatch, Stars, Sheet } from '../components/ui.jsx';
 import { asArray, attrText, daysBetween, fmtDate, fmtMoney, isoDate, cx } from '../lib/utils.js';
 
 export default function ItemDetail() {
@@ -17,6 +20,7 @@ export default function ItemDetail() {
   const price = Number(it.attrs?.[sys.price?.id]) || 0;
   const bought = it.attrs?.[sys.purchase_date?.id];
   const outfits = data.outfits.filter((o) => o.item_ids.includes(it.id));
+  const [datesOpen, setDatesOpen] = useState(false);
 
   const wornToday = async () => {
     const today = isoDate();
@@ -48,8 +52,10 @@ export default function ItemDetail() {
       </div>
 
       <div className="mini-stats">
-        <div><Repeat size={16} /><b>{n}</b><span>{n === 1 ? 'volta' : 'volte'}</span></div>
-        <div><Clock size={16} /><b>{lastWorn[it.id] ? `${daysBetween(lastWorn[it.id])}g` : '—'}</b><span>ultimo uso</span></div>
+        <button className="mini-stats__btn" disabled={!n} onClick={() => setDatesOpen(true)} aria-label="Vedi tutte le date">
+          <Repeat size={16} /><b>{n}</b><span>{n === 1 ? 'volta' : 'volte'}{n > 0 && <> · date<ChevronRight size={11} /></>}</span>
+        </button>
+        <div><Clock size={16} /><b>{lastWorn[it.id] ? (daysBetween(lastWorn[it.id]) === 0 ? 'oggi' : `${daysBetween(lastWorn[it.id])}g fa`) : '—'}</b><span>ultima volta indossato</span></div>
         <div><Euro size={16} /><b>{price ? fmtMoney(price / Math.max(1, n)) : '—'}</b><span>per utilizzo</span></div>
       </div>
 
@@ -73,7 +79,7 @@ export default function ItemDetail() {
         })}
         {bought && <div className="kv"><span className="kv__k">Nel tuo armadio da</span><span className="kv__v">{ageText(bought)}</span></div>}
         {it.notes && <div className="kv kv--block"><span className="kv__k">Note</span><p>{it.notes}</p></div>}
-        {lastWorn[it.id] && <div className="kv"><span className="kv__k">Ultima volta</span><span className="kv__v">{fmtDate(lastWorn[it.id], { weekday: 'short', day: 'numeric', month: 'long' })}</span></div>}
+        {lastWorn[it.id] && <div className="kv"><span className="kv__k">Ultima volta indossato</span><span className="kv__v">{fmtDate(lastWorn[it.id], { weekday: 'short', day: 'numeric', month: 'long' })}</span></div>}
       </div>
 
       {outfits.length > 0 && (
@@ -90,6 +96,8 @@ export default function ItemDetail() {
         </>
       )}
 
+      <ItemInfo item={it} />
+
       {isAdmin && (
         <div className="detail-actions mt">
           <button className="btn btn--block" onClick={() => setArchived(it, !it.archived)}>
@@ -100,6 +108,93 @@ export default function ItemDetail() {
             await deleteItem(it);
             if (location.key !== 'default') nav(-1); else nav('/', { replace: true });
           }}><Trash2 size={18} />Elimina per sempre</button>
+        </div>
+      )}
+      {datesOpen && <WearDates item={it} onClose={() => setDatesOpen(false)} />}
+    </div>
+  );
+}
+
+/* ---------- elenco di tutte le volte che è stato indossato ---------- */
+function WearDates({ item, onClose }) {
+  const { data } = useStore();
+  const logs = data.wear_logs.filter((l) => asArray(l.item_ids).includes(item.id)).sort((a, b) => b.worn_on.localeCompare(a.worn_on));
+  const outfitName = (id) => data.outfits.find((o) => o.id === id)?.name;
+  return (
+    <Sheet open onClose={onClose} title={`Indossato ${logs.length} ${logs.length === 1 ? 'volta' : 'volte'}`} tall>
+      <ul className="dates">
+        {logs.map((l) => {
+          const d = daysBetween(l.worn_on);
+          return (
+            <li key={l.id}>
+              <span className="dates__day">{fmtDate(l.worn_on, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              <span className="muted small">{d === 0 ? 'oggi' : d === 1 ? 'ieri' : `${d} giorni fa`}{l.outfit_id && outfitName(l.outfit_id) ? ` · outfit «${outfitName(l.outfit_id)}»` : ''}</span>
+              {l.note && <span className="small">{l.note}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </Sheet>
+  );
+}
+
+/* ---------- Info e cronologia ---------- */
+function ItemInfo({ item }) {
+  const { attrBy, pathOf } = useStore();
+  const personal = usePersonal();
+  const [open, setOpen] = useState(false);
+  const [hist, setHist] = useState(undefined); // undefined = caricamento, null = non attiva
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setHist(undefined);
+    backend.db.history(item.id).then((h) => alive && setHist(h)).catch(() => alive && setHist(null));
+    return () => { alive = false; };
+  }, [open, item.id, item.updated_at]);
+
+  const when = (s) => s ? new Date(s).toLocaleString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const who = (r) => (r === 'viewer' ? personal.viewerName : r === 'admin' ? personal.adminName : '');
+  const catName = (id) => (id ? pathOf(id).map((c) => c.name).join(' › ') || 'categoria eliminata' : 'nessuna');
+  const line = (key, [a, b]) => {
+    if (key === 'name') return a == null ? 'Capo creato' : <>Nome: <s>{a}</s> → <b>{b}</b></>;
+    if (key === 'category_id') return <>Categoria: {catName(a)} → <b>{catName(b)}</b></>;
+    if (key === 'photo_path') return a && b ? 'Foto cambiata' : b ? 'Foto aggiunta' : 'Foto rimossa';
+    if (key === 'favorite') return b ? 'Aggiunto ai preferiti' : 'Tolto dai preferiti';
+    if (key === 'archived') return b ? 'Archiviato' : 'Ripristinato dall\'archivio';
+    if (key === 'notes') return 'Note modificate';
+    if (key.startsWith('attr:')) {
+      const at = attrBy[key.slice(5)];
+      if (!at) return 'Attributo (eliminato) modificato';
+      const fmt = (v) => attrText(at, v) || '—';
+      return <>{at.name}: {fmt(a)} → <b>{fmt(b)}</b></>;
+    }
+    return key;
+  };
+
+  return (
+    <div className={cx('info-box', open && 'info-box--open')}>
+      <button className="info-box__head" onClick={() => setOpen(!open)}>
+        <Info size={18} /><span className="grow"><b>Info e cronologia</b></span>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+      </button>
+      {open && (
+        <div className="info-box__body">
+          <div className="kv"><span className="kv__k">Creato</span><span className="kv__v">{when(item.created_at)}</span></div>
+          <div className="kv"><span className="kv__k">Ultima modifica</span><span className="kv__v">{when(item.updated_at)}</span></div>
+          <div className="kv"><span className="kv__k">Codice</span><span className="kv__v mono">{item.id.slice(0, 8)}</span></div>
+          <h4 className="sheet-sub"><History size={14} /> Modifiche</h4>
+          {hist === undefined && <p className="muted small">Carico…</p>}
+          {hist === null && <p className="muted small">La cronologia non è ancora attiva: va eseguito su Supabase lo script <b>aggiornamento-03-cronologia-capi.sql</b>.</p>}
+          {hist && !hist.length && <p className="muted small">Nessuna modifica registrata da quando è attiva la cronologia.</p>}
+          {hist && hist.length > 0 && (
+            <ul className="history">
+              {hist.map((h) => (
+                <li key={h.id}>
+                  <span className="history__when">{when(h.at)}{who(h.user_role) && <> · {who(h.user_role)}</>}</span>
+                  {Object.entries(h.changes || {}).map(([k, v]) => <span key={k} className="history__line">{line(k, v)}</span>)}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

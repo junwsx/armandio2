@@ -76,8 +76,21 @@ function OutfitGrid() {
 
 const WD = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
+// ordine dei capi nel quadratino del calendario: prima i principali
+const ROLE_ORDER = ['outer', 'top', 'full', 'bottom', 'shoes', 'accessory'];
+function DayCollage({ items }) {
+  const extra = items.length - 4;
+  const shown = extra > 0 ? items.slice(0, 3) : items.slice(0, 4);
+  return (
+    <span className={cx('day-collage', `day-collage--${Math.min(items.length, 4)}`)}>
+      {shown.map((it) => <Photo key={it.id} path={it.thumb_path || it.photo_path} />)}
+      {extra > 0 && <span className="day-collage__more">+{extra + 1}</span>}
+    </span>
+  );
+}
+
 function Calendar() {
-  const { data, itemBy } = useStore();
+  const { data, itemBy, roleOf } = useStore();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [day, setDay] = useState(null);
   const byDay = useMemo(() => {
@@ -103,10 +116,12 @@ function Calendar() {
           if (!d) return <span key={'e' + i} />;
           const k = isoDate(d);
           const logs = byDay[k] || [];
-          const firstItem = logs.flatMap((l) => l.item_ids).map((x) => itemBy[x]).find(Boolean);
+          const dayItems = [...new Set(logs.flatMap((l) => l.item_ids))].map((x) => itemBy[x]).filter(Boolean)
+            .sort((a, b) => ROLE_ORDER.indexOf(roleOf(a.category_id) || 'x') - ROLE_ORDER.indexOf(roleOf(b.category_id) || 'x'));
           return (
-            <button key={k} className={cx('cal-day', k === today && 'cal-day--today', logs.length && 'cal-day--has')} onClick={() => setDay(k)}>
-              {firstItem ? <Photo path={firstItem.thumb_path || firstItem.photo_path} /> : null}
+            <button key={k} className={cx('cal-day', k === today && 'cal-day--today', logs.length && 'cal-day--has')} onClick={() => setDay(k)}
+              aria-label={`${d.getDate()}: ${dayItems.length} capi`}>
+              {dayItems.length > 0 && <DayCollage items={dayItems} />}
               <span className="cal-day__n">{d.getDate()}</span>
             </button>
           );
@@ -228,63 +243,5 @@ export function OutfitDetail() {
         }}><Trash2 size={18} />Elimina outfit</button>
       )}
     </div>
-  );
-}
-
-/* ---------------- crea / modifica outfit ---------------- */
-export function OutfitEdit() {
-  const { id } = useParams();
-  const nav = useNavigate();
-  const [sp] = useSearchParams();
-  const location = useLocation();
-  const { data, itemBy, saveOutfit, notify, canEditOutfit } = useStore();
-  const orig = id ? data.outfits.find((x) => x.id === id) : null;
-  const blocked = orig && !canEditOutfit(orig);
-  const preset = sp.get('capi')?.split(',').filter((x) => itemBy[x]) || [];
-  const [o, setO] = useState(() => orig || { name: '', item_ids: preset, tags: [], favorite: false, notes: '' });
-  const [picker, setPicker] = useState(!orig && !preset.length);
-  const [tag, setTag] = useState('');
-  const allTags = [...new Set([...data.outfits.flatMap((x) => x.tags || []), 'Casual', 'Lavoro', 'Uscita', 'Elegante', 'Sport'])];
-  const set = (p) => setO((x) => ({ ...x, ...p }));
-  const toggleTag = (t) => set({ tags: o.tags.includes(t) ? o.tags.filter((x) => x !== t) : [...o.tags, t] });
-  const submit = async (e) => {
-    e.preventDefault();
-    if (blocked) return notify('Puoi modificare solo i tuoi outfit', 'err');
-    if (!o.name.trim()) return notify('Dai un nome all\'outfit', 'err');
-    if (!o.item_ids.length) return notify('Scegli almeno un capo', 'err');
-    const saved = await saveOutfit({ ...o, name: o.name.trim() });
-    if (orig && location.key !== 'default') nav(-1);
-    else nav(`/outfit/${saved.id}`, { replace: true });
-  };
-  return (
-    <form className="page page--form" onSubmit={submit}>
-      <TopBar title={orig ? 'Modifica outfit' : 'Nuovo outfit'} back />
-      <div className="pick-grid pick-grid--3">
-        {o.item_ids.map((x) => itemBy[x]).filter(Boolean).map((it) => (
-          <div key={it.id} className="pick pick--static">
-            <Photo path={it.thumb_path || it.photo_path} />
-            <span className="pick__name">{it.name}</span>
-            <button type="button" className="pick__x" onClick={() => set({ item_ids: o.item_ids.filter((y) => y !== it.id) })}><X size={14} /></button>
-          </div>
-        ))}
-        <button type="button" className="pick pick--add" onClick={() => setPicker(true)}><Plus size={22} /><span>Capi</span></button>
-      </div>
-      <div className="form-card">
-        <Field label="Nome"><input className="input" placeholder="Es. Aperitivo estivo" value={o.name} onChange={(e) => set({ name: e.target.value })} /></Field>
-        <Field label="Etichette">
-          <div className="chips-wrap">
-            {allTags.map((t) => <Chip key={t} small active={o.tags.includes(t)} onClick={() => toggleTag(t)}>{t}</Chip>)}
-          </div>
-          <div className="row gap mt-s">
-            <input className="input grow" placeholder="Nuova etichetta" value={tag} onChange={(e) => setTag(e.target.value)} />
-            <button type="button" className="btn" disabled={!tag.trim()} onClick={() => { toggleTag(tag.trim()); setTag(''); }}>Aggiungi</button>
-          </div>
-        </Field>
-        <Toggle label="Preferito" checked={o.favorite} onChange={(v) => set({ favorite: v })} />
-        <Field label="Note"><textarea className="input" rows={2} value={o.notes || ''} onChange={(e) => set({ notes: e.target.value })} /></Field>
-      </div>
-      <div className="form-save"><button className="btn btn--primary btn--block btn--lg">Salva outfit</button></div>
-      <ItemPicker open={picker} onClose={() => setPicker(false)} selected={o.item_ids} onChange={(v) => set({ item_ids: v })} />
-    </form>
   );
 }

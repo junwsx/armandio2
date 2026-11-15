@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FolderTree, Tags, LayoutGrid, Bookmark, Palette, User, Download, ChevronRight, Plus, Trash2, ArrowUp, ArrowDown,
-  GripVertical, LogOut, Search, RotateCcw, Lock, FileArchive, Heart, Asterisk, ImagePlus, AlertTriangle,
+  GripVertical, LogOut, Search, RotateCcw, Lock, FileArchive, Heart, Asterisk, ImagePlus, AlertTriangle, FileText, Loader2,
 } from 'lucide-react';
+import { exportPdf } from '../lib/pdf.js';
 import { usePersonal, DEFAULT_PERSONAL, DEFAULT_LOGIN } from '../lib/personal.js';
 import { HeartPhoto, HeartCropper } from '../components/personal.jsx';
 import { backend } from '../lib/backend.js';
@@ -18,6 +19,7 @@ import { uid, cx } from '../lib/utils.js';
 export default function Settings() {
   const { isAdmin, session, role, signOut, demo, resetDemo, data } = useStore();
   const { me } = usePersonal();
+  const [pdfOpen, setPdfOpen] = useState(false);
   const rows = [
     isAdmin && ['personalizza', <Heart size={20} />, 'Personalizza', 'Nomi, titolo, frasi e foto a cuore del login'],
     isAdmin && ['categorie', <FolderTree size={20} />, 'Categorie', `${data.categories.length} categorie, a più livelli`],
@@ -45,6 +47,10 @@ export default function Settings() {
             <ChevronRight size={18} className="muted" />
           </Link>
         ))}
+        <button className="menu__row" onClick={() => setPdfOpen(true)}>
+          <span className="menu__icon"><FileText size={20} /></span>
+          <span className="grow"><b>Esporta PDF</b><span className="muted small block">Tutto l'armadio impaginato per sezioni, con foto e attributi</span></span>
+        </button>
         {isAdmin && (
           <button className="menu__row" onClick={() => exportJson(data)}>
             <span className="menu__icon"><Download size={20} /></span>
@@ -60,6 +66,7 @@ export default function Settings() {
       </div>
       {!isAdmin && <p className="muted small center pad"><Lock size={12} /> Puoi guardare tutto: le modifiche le fa l'amministratore.</p>}
       <p className="muted small center">Armadio Digitale · v1.0</p>
+      {pdfOpen && <PdfSheet onClose={() => setPdfOpen(false)} />}
     </div>
   );
 }
@@ -467,5 +474,41 @@ export function FieldsSettings() {
       </div>
       <p className="muted small center pad">Nel modulo i campi obbligatori hanno un asterisco *. I capi già inseriti non vengono toccati.</p>
     </div>
+  );
+}
+
+/* ---------------- esportazione PDF ---------------- */
+function PdfSheet({ onClose }) {
+  const store = useStore();
+  const { title } = usePersonal();
+  const [photos, setPhotos] = useState(true);
+  const [archived, setArchived] = useState(false);
+  const [onlyGrid, setOnlyGrid] = useState(false);
+  const [busy, setBusy] = useState(null); // { done, total, phase }
+  const nArch = store.archivedItems.length;
+  const run = async () => {
+    setBusy({ done: 0, total: 0, phase: 'Preparo…' });
+    try {
+      const r = await exportPdf(store, { title, photos, archived, onlyGrid },
+        (done, total) => setBusy({ done, total, phase: 'Carico le foto' }));
+      store.notify(`PDF creato: ${r.pages} ${r.pages === 1 ? 'pagina' : 'pagine'}`);
+      onClose();
+    } catch (e) { console.error(e); store.notify('Non sono riuscito a creare il PDF', 'err'); setBusy(null); }
+  };
+  return (
+    <Sheet open onClose={busy ? undefined : onClose} title="Esporta PDF"
+      footer={busy ? (
+        <div className="progress">
+          <div className="progress__bar"><span style={{ width: busy.total ? `${(busy.done / busy.total) * 100}%` : '8%' }} /></div>
+          <span className="small"><Loader2 className="spin" size={13} /> {busy.phase}{busy.total ? ` ${busy.done}/${busy.total}` : ''}…</span>
+        </div>
+      ) : (
+        <button className="btn btn--primary btn--block btn--lg" onClick={run}><FileText size={18} />Crea e scarica il PDF</button>
+      )}>
+      <p className="muted small">Formato A4, diviso per sezioni (es. Parte sopra › Magliette). Ogni capo come nella griglia: foto, nome, categoria e attributi.</p>
+      <Toggle label="Includi le foto" hint="Senza foto il PDF è più leggero e si crea subito" checked={photos} onChange={setPhotos} />
+      <Toggle label="Solo gli attributi visibili nella griglia" hint="Altrimenti li mostra tutti" checked={onlyGrid} onChange={setOnlyGrid} />
+      {nArch > 0 && <Toggle label={`Includi l'archivio (${nArch})`} hint="In una sezione separata in fondo" checked={archived} onChange={setArchived} />}
+    </Sheet>
   );
 }

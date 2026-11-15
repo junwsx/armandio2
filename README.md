@@ -92,6 +92,7 @@ Alcune funzioni nuove richiedono di eseguire **una volta** un piccolo script SQL
 |---|---|
 | `supabase/aggiornamento-01-foto-login.sql` | Spazio pubblico per la foto a cuore e i testi della pagina di accesso |
 | `supabase/aggiornamento-02-outfit-ospite.sql` | L'ospite può creare outfit (e modificare/cancellare solo i suoi) |
+| `supabase/aggiornamento-03-cronologia-capi.sql` | Cronologia delle modifiche di ogni capo (Info e cronologia) |
 
 Chi installa da zero con `schema.sql` li ha già inclusi.
 
@@ -150,6 +151,12 @@ npm run dev          # apre http://localhost:5173
 - **Campi obbligatori** (*Altro → Campi obbligatori*): scegli se foto, categoria e ogni attributo sono obbligatori quando aggiungi un capo.
 - **Archivio**: dalla scheda di un capo, *Archivia (non lo metto più)*. Non compare più nell'armadio, nelle idee e nelle statistiche, ma resta nel chip **Archivio** in fondo ai filtri e si può ripristinare.
 - **Modifica massiva**: nell'armadio tocca l'icona ☑︎, seleziona i capi (o *Tutti*) → **Modifica**. Puoi cambiare categoria e preferito, e per ogni attributo aggiungere, togliere, sostituire o svuotare i valori. In più archivi, ripristini o elimini in blocco.
+- **Scheda capo**:
+  - tocca «N volte» per l'elenco di tutte le date in cui l'hai indossato;
+  - *Info e cronologia* mostra creazione, ultima modifica e la storia di ogni cambiamento.
+- **Gradimento** con mezze stelle (tocco ripetuto: piena → mezza → vuota) e ordinamento «Gradimento».
+- **Outfit a sezioni**: scegli da quale sezione partire (sopra, sotto, capospalla, scarpe, accessori…), più capi per sezione, poi il riepilogo con nome, etichette (＋ per crearne una), preferito e note.
+- **Esporta PDF** (*Altro → Esporta PDF*): tutto l'armadio in un PDF A4 diviso per sezioni, 3 capi per riga come nella griglia, con foto, nome, categoria e attributi. Opzioni: con o senza foto, tutti gli attributi o solo quelli della griglia, archivio incluso o no. Disponibile anche per l'ospite.
 - **Backup**: *Altro → Esporta backup* scarica tutti i dati in JSON.
 - **Importa da Whering**: *Altro → Importa da Whering*, scegli lo ZIP esportato (`whering-export/whering-export-con-foto.zip`). Crea capi, foto, categorie, colori, stagioni, uso, usura, marca, stile e outfit. Si può rilanciare senza creare doppioni.
 

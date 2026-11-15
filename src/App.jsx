@@ -8,7 +8,8 @@ import { Toast } from './components/ui.jsx';
 import Wardrobe from './pages/Wardrobe.jsx';
 import ItemDetail from './pages/ItemDetail.jsx';
 import ItemEdit from './pages/ItemEdit.jsx';
-import Outfits, { OutfitDetail, OutfitEdit } from './pages/Outfits.jsx';
+import Outfits, { OutfitDetail } from './pages/Outfits.jsx';
+import OutfitBuilder from './pages/OutfitBuilder.jsx';
 import Inspiration from './pages/Inspiration.jsx';
 import Stats from './pages/Stats.jsx';
 import ImportWhering from './pages/ImportWhering.jsx';
@@ -52,9 +53,9 @@ function Shell() {
           <Route path="/capo/:id" element={<ItemDetail />} />
           <Route path="/capo/:id/modifica" element={<ItemEdit />} />
           <Route path="/outfit" element={<Outfits />} />
-          <Route path="/outfit/nuovo" element={<OutfitEdit />} />
+          <Route path="/outfit/nuovo" element={<OutfitBuilder />} />
           <Route path="/outfit/:id" element={<OutfitDetail />} />
-          <Route path="/outfit/:id/modifica" element={<OutfitEdit />} />
+          <Route path="/outfit/:id/modifica" element={<OutfitBuilder />} />
           <Route path="/ispirazioni" element={<Inspiration />} />
           <Route path="/statistiche" element={<Stats />} />
           <Route path="/impostazioni" element={<Settings />} />

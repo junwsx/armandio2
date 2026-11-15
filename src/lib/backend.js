@@ -80,6 +80,12 @@ function supabaseBackend() {
       async update(table, id, patch) { return unwrap(await sb.from(table).update(patch).eq('id', id).select().single()); },
       async remove(table, id) { unwrap(await sb.from(table).delete().eq('id', id)); },
       async setSetting(key, value) { return unwrap(await sb.from('settings').upsert({ key, value }).select().single()); },
+      // cronologia di un capo (tabella item_history, scritta dal database). null = non ancora attivata
+      async history(itemId) {
+        const { data, error } = await sb.from('item_history').select('*').eq('item_id', itemId).order('at', { ascending: false }).limit(300);
+        if (error) return null;
+        return data;
+      },
     },
     storage: {
       async upload(path, blob) {
@@ -140,6 +146,26 @@ function demoBackend() {
   const tx = async (mode, fn) => { const db = await idb; return new Promise((res, rej) => { const t = db.transaction('p', mode); const s = t.objectStore('p'); const r = fn(s); t.oncomplete = () => res(r?.result); t.onerror = () => rej(t.error); }); };
   const urls = new Map();
   const clone = (x) => JSON.parse(JSON.stringify(x));
+  // stessa logica del trigger SQL log_item_change (aggiornamento-03)
+  const logDemo = (o, n) => {
+    const role = new URLSearchParams(location.search).get('ruolo') === 'viewer' ? 'viewer' : 'admin';
+    let changes = {};
+    if (!o) changes = { name: [null, n.name] };
+    else {
+      const ne = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+      if (ne(o.name, n.name)) changes.name = [o.name, n.name];
+      if (ne(o.category_id, n.category_id)) changes.category_id = [o.category_id, n.category_id];
+      if (ne(o.photo_path, n.photo_path)) changes.photo_path = [!!o.photo_path, !!n.photo_path];
+      if (ne(o.favorite, n.favorite)) changes.favorite = [o.favorite, n.favorite];
+      if (ne(o.archived, n.archived)) changes.archived = [o.archived, n.archived];
+      if ((o.notes || '') !== (n.notes || '')) changes.notes = [o.notes, n.notes];
+      new Set([...Object.keys(o.attrs || {}), ...Object.keys(n.attrs || {})]).forEach((k) => {
+        if (ne(o.attrs?.[k], n.attrs?.[k])) changes['attr:' + k] = [o.attrs?.[k] ?? null, n.attrs?.[k] ?? null];
+      });
+      if (!Object.keys(changes).length) return;
+    }
+    state.item_history = [...(state.item_history || []), { id: uid(), item_id: n.id, at: new Date().toISOString(), user_role: role, action: o ? 'update' : 'create', changes }];
+  };
 
   return {
     demo: true,
@@ -152,14 +178,19 @@ function demoBackend() {
     },
     db: {
       async list(t) { return clone(state[t] || []); },
+      async history(itemId) {
+        return clone((state.item_history || []).filter((h) => h.item_id === itemId).sort((a, b) => b.at.localeCompare(a.at)));
+      },
       async insert(t, row) {
         const r = { id: uid(), created_at: new Date().toISOString(), ...row };
+        if (t === 'items') logDemo(null, r);
         if (t === 'items') r.updated_at = r.created_at;
         if (t === 'outfits' && !r.created_by) r.created_by = new URLSearchParams(location.search).get('ruolo') === 'viewer' ? 'demo-ospite' : 'demo';
         state[t] = [...(state[t] || []), r]; save(); return clone(r);
       },
       async update(t, id, patch) {
-        let out; state[t] = state[t].map((r) => (r.id === id ? (out = { ...r, ...patch, ...(t === 'items' ? { updated_at: new Date().toISOString() } : {}) }) : r));
+        let out, prev; state[t] = state[t].map((r) => (r.id === id ? (prev = r, out = { ...r, ...patch, ...(t === 'items' ? { updated_at: new Date().toISOString() } : {}) }) : r));
+        if (t === 'items' && prev) logDemo(prev, out);
         save(); return clone(out);
       },
       async remove(t, id) { state[t] = state[t].filter((r) => r.id !== id); save(); },

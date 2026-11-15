@@ -40,7 +40,7 @@ export function attrText(attr, value) {
       return asArray(value).map((v) => attr.options.find((o) => o.id === v)?.label).filter(Boolean).join(', ');
     case 'date': return fmtDate(value);
     case 'number': return attr.unit === '€' ? fmtMoney(value) : `${value}${attr.unit ? ' ' + attr.unit : ''}`;
-    case 'rating': return '★'.repeat(Number(value) || 0);
+    case 'rating': return ratingText(value);
     case 'boolean': return value ? attr.name : '';
     default: return String(value);
   }
@@ -55,3 +55,9 @@ export function onColor(hex = '#888') {
 }
 
 export const cx = (...a) => a.filter(Boolean).join(' ');
+
+// 3.5 → «★★★½»
+export function ratingText(v) {
+  const n = Number(v) || 0;
+  return '★'.repeat(Math.floor(n)) + (n % 1 >= 0.5 ? '½' : '');
+}
