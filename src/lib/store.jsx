@@ -180,6 +180,8 @@ export function StoreProvider({ children }) {
     session, role, isAdmin: role === 'admin', data,
     userId: session?.user?.id,
     // outfit: l'admin modifica tutto, l'ospite solo quelli creati da lui
+    // calendario condiviso: lo gestiscono admin e ospite
+    canEditCalendar: role === 'admin' || role === 'viewer',
     canEditOutfit: (o) => role === 'admin' || (!!o?.created_by && o.created_by === session?.user?.id), error, toast, notify, demo: backend.demo, resetDemo: backend.reset,
     ...(derived || {}), ...actions,
   };

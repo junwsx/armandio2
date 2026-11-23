@@ -191,6 +191,11 @@ create policy "outfit: ospite modifica i suoi" on public.outfits
 create policy "outfit: ospite cancella i suoi" on public.outfits
   for delete to authenticated using (public.is_member() and created_by = auth.uid());
 
+-- 3d. Calendario condiviso: lo gestisce anche l'ospite
+drop policy if exists "calendario: scrittura membri" on public.wear_logs;
+create policy "calendario: scrittura membri" on public.wear_logs
+  for all to authenticated using (public.is_member()) with check (public.is_member());
+
 -- Permessi espliciti: funziona anche con "Automatically expose new tables" DISATTIVATO.
 -- anon (chi non ha fatto login) non riceve nulla; authenticated passa comunque dalle regole RLS sopra.
 grant usage on schema public to authenticated;

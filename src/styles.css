@@ -567,3 +567,18 @@ select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csv
 .day-collage .photo { position: static; width: 100%; height: 100%; min-height: 0; }
 .day-collage .photo img { object-fit: contain; padding: 1px; }
 .day-collage__more { display: grid; place-items: center; background: var(--bg-2); font-size: 11px; font-weight: 700; color: var(--text-2); }
+
+/* ---------- ultima volta indossato sotto ogni capo ---------- */
+.pick__worn { font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+.pick__name { line-height: 1.25; min-height: 0; flex: none; }
+.pick__worn--never { color: var(--accent); font-weight: 600; }
+/* filtri della scelta guidata */
+.gp-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.gp-filters .chip { gap: 5px; }
+/* collage outfit: «+N» quando i capi sono più di 4 */
+.collage { position: relative; }
+.collage__more { display: grid; place-items: center; background: var(--bg-2); font-weight: 800; font-size: 17px; color: var(--text-2); font-family: var(--font-display); }
+.mini-outfit .collage__more { font-size: 14px; }
+/* giorno del calendario */
+.day-linked { display: flex; align-items: center; gap: 6px; margin: 8px 2px 0; font-size: 13px; font-weight: 600; color: var(--accent); }
+.form-save.row { display: flex; }

@@ -10,6 +10,7 @@ import ItemDetail from './pages/ItemDetail.jsx';
 import ItemEdit from './pages/ItemEdit.jsx';
 import Outfits, { OutfitDetail } from './pages/Outfits.jsx';
 import OutfitBuilder from './pages/OutfitBuilder.jsx';
+import DayEditor from './pages/DayEditor.jsx';
 import Inspiration from './pages/Inspiration.jsx';
 import Stats from './pages/Stats.jsx';
 import ImportWhering from './pages/ImportWhering.jsx';
@@ -56,6 +57,7 @@ function Shell() {
           <Route path="/outfit/nuovo" element={<OutfitBuilder />} />
           <Route path="/outfit/:id" element={<OutfitDetail />} />
           <Route path="/outfit/:id/modifica" element={<OutfitBuilder />} />
+          <Route path="/calendario/:giorno" element={<DayEditor />} />
           <Route path="/ispirazioni" element={<Inspiration />} />
           <Route path="/statistiche" element={<Stats />} />
           <Route path="/impostazioni" element={<Settings />} />
@@ -79,7 +81,7 @@ function Shell() {
 
 function BottomNav() {
   const loc = useLocation();
-  const hide = /\/(nuovo|modifica)$/.test(loc.pathname);
+  const hide = /\/(nuovo|modifica)$/.test(loc.pathname) || loc.pathname.startsWith('/calendario/');
   if (hide) return null;
   const tabs = [
     ['/', <Shirt size={22} />, 'Armadio', (p) => p === '/' || p.startsWith('/capo')],

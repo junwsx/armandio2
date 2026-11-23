@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { Plus, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid, Heart, Pencil, Trash2, CalendarCheck, X, Layers } from 'lucide-react';
 import { useStore } from '../lib/store.jsx';
 import { TopBar, Segmented, Empty, Sheet, Photo, Chip, Field, Toggle } from '../components/ui.jsx';
-import { ItemPicker } from '../components/pickers.jsx';
 import { OutfitCollage } from './ItemDetail.jsx';
 import { fmtDate, isoDate, cx } from '../lib/utils.js';
 import { usePersonal } from '../lib/personal.js';
@@ -59,7 +58,7 @@ function OutfitGrid() {
               </div>
               <div className="card__body">
                 <h3 className="card__name">{o.name}</h3>
-                <p className="card__cat">{o.item_ids.length} capi · {uses[o.id] || 0} {uses[o.id] === 1 ? 'volta' : 'volte'}</p>
+                <p className="card__cat">{o.item_ids.length} {o.item_ids.length === 1 ? 'capo' : 'capi'} · {uses[o.id] || 0} {uses[o.id] === 1 ? 'volta' : 'volte'}</p>
                 {(o.tags?.length > 0 || author(o)) && <div className="badges">{author(o) && <span className="tag tag--author">di {author(o)}</span>}{o.tags.slice(0, 3).map((t) => <span key={t} className="tag">{t}</span>)}</div>}
               </div>
             </Link>
@@ -90,9 +89,9 @@ function DayCollage({ items }) {
 }
 
 function Calendar() {
+  const nav = useNavigate();
   const { data, itemBy, roleOf } = useStore();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [day, setDay] = useState(null);
   const byDay = useMemo(() => {
     const m = {}; data.wear_logs.forEach((l) => { (m[l.worn_on] ||= []).push(l); }); return m;
   }, [data.wear_logs]);
@@ -119,7 +118,7 @@ function Calendar() {
           const dayItems = [...new Set(logs.flatMap((l) => l.item_ids))].map((x) => itemBy[x]).filter(Boolean)
             .sort((a, b) => ROLE_ORDER.indexOf(roleOf(a.category_id) || 'x') - ROLE_ORDER.indexOf(roleOf(b.category_id) || 'x'));
           return (
-            <button key={k} className={cx('cal-day', k === today && 'cal-day--today', logs.length && 'cal-day--has')} onClick={() => setDay(k)}
+            <button key={k} className={cx('cal-day', k === today && 'cal-day--today', logs.length && 'cal-day--has')} onClick={() => nav(`/calendario/${k}`)}
               aria-label={`${d.getDate()}: ${dayItems.length} capi`}>
               {dayItems.length > 0 && <DayCollage items={dayItems} />}
               <span className="cal-day__n">{d.getDate()}</span>
@@ -128,70 +127,8 @@ function Calendar() {
         })}
       </div>
       <p className="cal-sum">{monthLogs.length} {monthLogs.length === 1 ? 'giorno registrato' : 'giorni registrati'} questo mese</p>
-      <button className="btn btn--block" onClick={() => setDay(today)}><CalendarCheck size={18} />Cosa indosso oggi?</button>
-      {day && <DaySheet day={day} logs={byDay[day] || []} onClose={() => setDay(null)} />}
+      <button className="btn btn--block" onClick={() => nav(`/calendario/${today}`)}><CalendarCheck size={18} />Cosa indosso oggi?</button>
     </div>
-  );
-}
-
-function DaySheet({ day, logs, onClose }) {
-  const { data, itemBy, isAdmin, saveLog, deleteLog } = useStore();
-  const log = logs[0];
-  const [ids, setIds] = useState(log?.item_ids || []);
-  const [outfitId, setOutfitId] = useState(log?.outfit_id || null);
-  const [note, setNote] = useState(log?.note || '');
-  const [picker, setPicker] = useState(false);
-  const os = data.outfits;
-  const chooseOutfit = (o) => {
-    if (outfitId === o.id) { setOutfitId(null); return; }
-    setOutfitId(o.id); setIds(o.item_ids);
-  };
-  const save = async () => {
-    if (!ids.length) { if (log) await deleteLog(log.id); onClose(); return; }
-    await saveLog({ ...(log || {}), worn_on: day, item_ids: ids, outfit_id: outfitId, note: note || null });
-    onClose();
-  };
-  return (
-    <Sheet open onClose={onClose} title={fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long' })} tall
-      footer={isAdmin && (
-        <div className="row gap">
-          {log && <button className="btn btn--danger" onClick={async () => { await deleteLog(log.id); onClose(); }}><Trash2 size={18} /></button>}
-          <button className="btn btn--primary grow" onClick={save}>Salva giornata</button>
-        </div>
-      )}>
-      {ids.length ? (
-        <div className="pick-grid pick-grid--3">
-          {ids.map((id) => itemBy[id]).filter(Boolean).map((it) => (
-            <div key={it.id} className="pick pick--static">
-              <Photo path={it.thumb_path || it.photo_path} />
-              <span className="pick__name">{it.name}</span>
-              {isAdmin && <button className="pick__x" onClick={() => { setIds(ids.filter((x) => x !== it.id)); setOutfitId(null); }}><X size={14} /></button>}
-            </div>
-          ))}
-        </div>
-      ) : <p className="muted center pad">Nessun capo registrato per questo giorno.</p>}
-      {isAdmin && (
-        <>
-          <button className="btn btn--block" onClick={() => setPicker(true)}><Plus size={18} />Scegli i capi</button>
-          {os.length > 0 && (
-            <>
-              <h4 className="sheet-sub">Oppure scegli un outfit salvato</h4>
-              <div className="h-scroll">
-                {os.map((o) => (
-                  <button key={o.id} className={cx('mini-outfit', outfitId === o.id && 'mini-outfit--on')} onClick={() => chooseOutfit(o)}>
-                    <OutfitCollage ids={o.item_ids} />
-                    <span>{o.name}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <Field label="Nota"><input className="input" placeholder="Es. matrimonio di Luca, pioveva…" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-        </>
-      )}
-      {!isAdmin && log?.note && <p className="pad">{log.note}</p>}
-      <ItemPicker open={picker} onClose={() => setPicker(false)} selected={ids} onChange={(v) => { setIds(v); setOutfitId(null); }} />
-    </Sheet>
   );
 }
 
@@ -200,7 +137,7 @@ export function OutfitDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const location = useLocation();
-  const { data, itemBy, isAdmin, saveLog, deleteOutfit, notify, saveOutfit, canEditOutfit } = useStore();
+  const { data, itemBy, canEditCalendar, saveLog, deleteOutfit, notify, saveOutfit, canEditOutfit } = useStore();
   const o = data.outfits.find((x) => x.id === id);
   if (!o) return <div className="page"><TopBar title="Outfit non trovato" back /></div>;
   const canEdit = canEditOutfit(o);
@@ -225,7 +162,7 @@ export function OutfitDetail() {
         <div><b>{logs.length}</b><span>{logs.length === 1 ? 'volta' : 'volte'}</span></div>
         <div><b>{logs[0] ? fmtDate(logs[0].worn_on, { day: 'numeric', month: 'short' }) : '—'}</b><span>ultima volta</span></div>
       </div>
-      {isAdmin && <button className="btn btn--primary btn--block" onClick={wornToday}><CalendarCheck size={18} />Lo indosso oggi</button>}
+      {canEditCalendar && <button className="btn btn--primary btn--block" onClick={wornToday}><CalendarCheck size={18} />Lo indosso oggi</button>}
       <div className="grid grid--2 mt">
         {items.map((it) => (
           <Link key={it.id} to={`/capo/${it.id}`} className="card">

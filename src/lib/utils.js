@@ -61,3 +61,14 @@ export function ratingText(v) {
   const n = Number(v) || 0;
   return '★'.repeat(Math.floor(n)) + (n % 1 >= 0.5 ? '½' : '');
 }
+
+// «3 giorni fa · mer 18/11» — per sapere quando è stato indossato l'ultima volta
+export function lastWornText(day) {
+  if (!day) return 'mai indossato';
+  const d = Math.round((Date.parse(isoDate()) - Date.parse(day)) / 864e5);
+  const dt = new Date(day + 'T12:00:00');
+  const sameYear = dt.getFullYear() === new Date().getFullYear();
+  const date = dt.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', ...(sameYear ? {} : { year: '2-digit' }) }).replace(',', '');
+  const rel = d <= 0 ? (d === 0 ? 'oggi' : 'in programma') : d === 1 ? 'ieri' : `${d} giorni fa`;
+  return `${rel} · ${date}`;
+}

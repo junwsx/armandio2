@@ -8,7 +8,7 @@ import { currentSeasonId, isoDate, cx } from '../lib/utils.js';
 
 export default function Inspiration() {
   const store = useStore();
-  const { sys, isAdmin, data, saveWish, deleteWish, saveLog, settingsBy } = store;
+  const { sys, isAdmin, canEditCalendar, data, saveWish, deleteWish, saveLog, settingsBy } = store;
   const nav = useNavigate();
   const gender = settingsBy.search?.gender || '';
   const [season, setSeason] = useState(currentSeasonId());
@@ -64,8 +64,8 @@ export default function Inspiration() {
           ) : <p className="muted pad">Non trovo abbastanza capi per questa combinazione. Assegna una categoria e un «ruolo» (sopra, sotto, scarpe…) ai tuoi capi.</p>}
           {outfit.length > 0 && (
             <div className="row gap">
-              <button className={isAdmin ? 'btn grow' : 'btn btn--primary grow'} onClick={() => nav(`/outfit/nuovo?capi=${outfit.map((i) => i.id).join(',')}`)}><Save size={16} />Salva come outfit</button>
-              {isAdmin && <button className="btn btn--primary grow" onClick={async () => {
+              <button className={canEditCalendar ? 'btn grow' : 'btn btn--primary grow'} onClick={() => nav(`/outfit/nuovo?capi=${outfit.map((i) => i.id).join(',')}`)}><Save size={16} />Salva come outfit</button>
+              {canEditCalendar && <button className="btn btn--primary grow" onClick={async () => {
                 const today = isoDate(); const ex = data.wear_logs.find((l) => l.worn_on === today);
                 await saveLog({ ...(ex || {}), worn_on: today, item_ids: outfit.map((i) => i.id), outfit_id: null });
               }}><CalendarCheck size={16} />Lo indosso</button>}

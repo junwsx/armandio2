@@ -11,7 +11,7 @@ export default function ItemDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const location = useLocation();
-  const { itemBy, pathOf, attrsFor, wear, lastWorn, isAdmin, toggleFavorite, deleteItem, data, saveLog, sys, notify, setArchived } = useStore();
+  const { itemBy, pathOf, attrsFor, wear, lastWorn, isAdmin, canEditCalendar, toggleFavorite, deleteItem, data, saveLog, sys, notify, setArchived } = useStore();
   const it = itemBy[id];
   if (!it) return <div className="page"><TopBar title="Capo non trovato" back="/" /></div>;
   const path = pathOf(it.category_id);
@@ -59,7 +59,7 @@ export default function ItemDetail() {
         <div><Euro size={16} /><b>{price ? fmtMoney(price / Math.max(1, n)) : '—'}</b><span>per utilizzo</span></div>
       </div>
 
-      {isAdmin && !it.archived && (
+      {canEditCalendar && !it.archived && (
         <button className="btn btn--primary btn--block" onClick={wornToday}><CalendarCheck size={18} />L'ho indossato oggi</button>
       )}
 
@@ -212,10 +212,14 @@ function ageText(d) {
 
 export function OutfitCollage({ ids, className }) {
   const { itemBy } = useStore();
-  const items = ids.map((i) => itemBy[i]).filter(Boolean).slice(0, 4);
+  const all = ids.map((i) => itemBy[i]).filter(Boolean);
+  // più di 4 capi: 3 miniature + «+N» per far capire che ce ne sono altri
+  const more = all.length > 4 ? all.length - 3 : 0;
+  const items = more ? all.slice(0, 3) : all.slice(0, 4);
   return (
-    <div className={cx('collage', `collage--${Math.max(1, items.length)}`, className)}>
+    <div className={cx('collage', `collage--${Math.max(1, Math.min(all.length, 4))}`, className)}>
       {items.map((it) => <Photo key={it.id} path={it.thumb_path || it.photo_path} />)}
+      {more > 0 && <span className="collage__more">+{more}</span>}
       {!items.length && <Photo path={null} />}
     </div>
   );
